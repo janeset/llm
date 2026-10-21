@@ -142,61 +142,85 @@ ul, ol { padding-left: 1.3em; } li { margin: 4px 0; }
 /* ===========================================================
    Top bar & navigation
    =========================================================== */
-/* The header is a sticky strip that fades into the page; the bars inside it float as glass pills. */
+/* The page uses the whole window: one fluid side gutter, from 16px on phones up to 56px on wide screens. */
+:root { --gutter: clamp(16px, 3.2vw, 56px); --head-h: 60px; }
+/* Header: a full-width bar with the brand, text links that open menus, and round buttons and pills on the right */
 .topbar {
   position: sticky; top: 0; z-index: 20;
-  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px));
-  background: linear-gradient(to bottom, var(--bg) 0, color-mix(in srgb, var(--bg) 82%, transparent) 62%, transparent);
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: saturate(160%) blur(16px); -webkit-backdrop-filter: saturate(160%) blur(16px);
+  border-bottom: 1px solid transparent; transition: border-color .2s;
 }
-.topbar-inner, .subnav-inner {
-  background: var(--glass); border: 1px solid var(--glass-edge); border-radius: 14px;
-  backdrop-filter: saturate(160%) blur(20px); -webkit-backdrop-filter: saturate(160%) blur(20px);
-  box-shadow: inset 0 1px 0 var(--edge-hi), var(--lift);
-}
-/* Wider than main (1180px) so all nav labels fit beside the brand and search. */
-.topbar-inner { max-width: 1260px; margin: 0 auto; padding: 7px 8px 7px 10px; display: flex; align-items: center; gap: 14px; }
+.topbar.scrolled { border-bottom-color: var(--line); }
+.topbar-inner { height: var(--head-h); display: flex; align-items: center; gap: clamp(12px, 2vw, 32px);
+  padding-left: max(var(--gutter), env(safe-area-inset-left, 0px)); padding-right: max(var(--gutter), env(safe-area-inset-right, 0px)); }
 .brand { display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 0; cursor: pointer; color: var(--text); font: inherit; text-align: left; flex-shrink: 0; }
 .logo { width: 30px; height: 30px; display: block; filter: drop-shadow(0 4px 10px color-mix(in srgb, var(--accent) 35%, transparent)); }
 .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
 .brand-text b { font-size: .98rem; font-weight: 700; letter-spacing: -0.02em; }
 .brand-text small { font: 500 .62rem var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
-nav#nav { display: flex; gap: 3px; flex: 1; overflow-x: auto; scrollbar-width: none; }
-/* Auto margins centre the buttons when they fit; unlike justify-content: center they never clip the first ones when they don't. */
-nav#nav > :first-child { margin-left: auto; }
-nav#nav > :last-child { margin-right: auto; }
-nav#nav::-webkit-scrollbar { display: none; }
-/* A fade on the edge with more tabs behind it (set by navEdges in trackview.js). */
-nav#nav.more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
-nav#nav.more-left { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); }
-nav#nav.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
-/* Main nav: mono [K] LABEL chips. Wide screens show the shortcut and label; narrow ones show icons. */
-nav#nav button, .console-btn {
-  display: inline-flex; align-items: center; gap: 6px; border: 0; color: var(--muted);
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-  height: 30px; padding: 0 8px; border-radius: 6px; cursor: pointer; white-space: nowrap;
-  font: 500 .72rem var(--mono); letter-spacing: .01em; text-transform: uppercase;
-  transition: background .15s, color .15s;
-}
-nav#nav button:hover, .console-btn:hover { color: var(--text); background: color-mix(in srgb, var(--accent) 13%, transparent); }
-nav#nav button.active, .console-btn.on { color: var(--accent-ink); background: var(--accent); }
-.nk { color: var(--accent); font-style: normal; }
-nav#nav button.active .nk, .console-btn.on .nk { color: inherit; opacity: .75; }
-[data-keys="off"] .nk { display: none; }
+nav#nav { display: flex; align-items: center; gap: 2px; flex: 1; }
+nav#nav > button, .dd > button { display: inline-flex; align-items: center; gap: 5px; height: 36px; padding: 0 12px; border: 0; border-radius: 8px; background: none;
+  color: var(--text); font: 500 .9rem var(--font); letter-spacing: -0.01em; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s; }
+nav#nav > button:hover, .dd:hover > button, .dd:focus-within > button { background: var(--hover); }
+nav#nav button.active { color: var(--accent); }
+nav#nav > button.active, .dd > button.active { background: var(--accent-soft); }
+.dd > button .chev { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 2.2; opacity: .6; transition: transform .2s; }
+.dd:hover > button .chev, .dd:focus-within > button .chev { transform: rotate(180deg); }
+/* Menus open on hover or keyboard focus, like a mega menu: columns of links and an "up next" card */
+.dd { position: relative; }
+.dd-panel { position: absolute; left: -8px; top: calc(100% + 10px); z-index: 30; display: none; grid-auto-flow: column; grid-auto-columns: minmax(180px, auto); gap: 6px 28px;
+  padding: 18px 20px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); box-shadow: 0 30px 70px -30px rgba(10, 20, 40, .55); animation: pal-in .16s ease-out; transform-origin: 20% 0; }
+.dd-panel::before { content: ""; position: absolute; left: 0; right: 0; top: -12px; height: 12px; }
+.dd:hover .dd-panel, .dd:focus-within .dd-panel { display: grid; }
+.mn-col { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mn-h { font: 500 .66rem var(--mono); letter-spacing: .03em; text-transform: uppercase; color: var(--muted); padding: 2px 10px 8px; }
+.mn-i { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 7px 10px; border: 0; border-radius: 8px; background: none; color: var(--text);
+  font: 450 .88rem var(--font); text-align: left; cursor: pointer; white-space: nowrap; }
+.mn-i:hover, .mn-i:focus-visible { background: var(--hover); }
+.mn-i.on { color: var(--accent); background: var(--accent-soft); }
+.mn-i small { font: .7rem var(--mono); color: var(--muted); }
+.mn-next { width: 240px; display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.mn-next b { font-size: .95rem; letter-spacing: -0.01em; line-height: 1.3; white-space: normal; }
+.mn-next .muted { font-size: .8rem; }
+.mn-foot { grid-column: 1 / -1; display: flex; gap: 14px; align-items: center; padding: 10px 10px 0; margin-top: 6px; border-top: 1px solid var(--line); font: .7rem var(--mono); color: var(--muted); }
+[data-keys="off"] .mn-foot .k { display: none; }
+/* Right side: round icon buttons, then an outline pill and a solid pill */
+.top-r { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: auto; }
 nav#nav svg, .icon-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
-@media (min-width: 1131px) { nav#nav button svg { display: none; } }
-.icon-btn { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; flex-shrink: 0; transition: border-color .15s, transform .15s; }
-.icon-btn:hover { border-color: var(--line-strong); transform: rotate(-12deg); }
-@media (max-width: 1130px) { nav#nav button span { display: none; } nav#nav button { padding: 0 10px; height: 34px; } }
-@media (max-width: 1360px) { .console-btn span { display: none; } }
-@media (max-width: 640px) {
-  .brand-text, .console-btn { display: none; }
-  .topbar-inner { gap: 8px; padding: 6px 8px; }
+.icon-btn { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; flex-shrink: 0; transition: border-color .15s, transform .15s; }
+.icon-btn:hover { border-color: var(--line-strong); }
+#theme-quick:hover { transform: rotate(-12deg); }
+.pill-btn { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 16px; border-radius: 999px; font: 600 .86rem var(--font); cursor: pointer; white-space: nowrap;
+  border: 1px solid var(--line-strong); background: transparent; color: var(--text); transition: background .15s, border-color .15s, transform .1s; }
+.pill-btn:hover { border-color: var(--text); }
+.pill-btn:active { transform: translateY(1px); }
+.pill-btn.solid { background: var(--text); color: var(--bg); border-color: var(--text); }
+.pill-btn.solid:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.pill-btn kbd { height: 18px; min-width: 18px; }
+.console-btn.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+.menu-btn { display: none; }
+/* Phones and narrow windows: links move into a menu sheet under the header */
+.menu-sheet { display: none; }
+@media (max-width: 980px) {
+  nav#nav, .pill-btn { display: none; }
+  .menu-btn { display: grid; }
+  .topbar.menu-open .menu-sheet { display: block; max-height: calc(100vh - var(--head-h)); overflow-y: auto; border-top: 1px solid var(--line);
+    padding: 12px max(var(--gutter), env(safe-area-inset-right, 0px)) 20px max(var(--gutter), env(safe-area-inset-left, 0px)); background: var(--surface); }
+  .menu-sheet .mn-sec { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .menu-sheet .mn-sec:last-child { border-bottom: 0; }
+  .menu-sheet .mn-top { width: 100%; font: 600 1.05rem var(--font); padding: 10px; }
+  .menu-sheet .mn-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 4px 16px; }
+  .menu-sheet .mn-next { width: auto; }
 }
+@media (max-width: 640px) { .brand-text { display: none; } }
 
 /* ===========================================================
    Layout & surfaces
    =========================================================== */
-main { max-width: 1180px; margin: 0 auto; padding: 26px 20px 60px; animation: fade-in .25s ease; }
+main { padding: 26px max(var(--gutter), env(safe-area-inset-right, 0px)) 60px max(var(--gutter), env(safe-area-inset-left, 0px)); animation: fade-in .25s ease; }
+/* Long reading text keeps a comfortable line length even on very wide screens */
+.lesson-body > p, .lesson-body > ul, .lesson-body > ol, .lesson-body > h3, .page-head p, .hero p { max-width: 80ch; }
 @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .card {
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
@@ -473,8 +497,9 @@ dialog textarea { font-family: var(--font); background: var(--surface); color: v
 .timer.H { color: var(--bad); }
 [data-theme="contrast"] .t-cloud, [data-theme="contrast"] .t-ai, [data-theme="contrast"] .t-claude, [data-theme="contrast"] .t-roles { --tc: var(--accent); }
 .nav-sep { width: 1px; height: 18px; background: var(--line-strong); margin: 0 4px; flex-shrink: 0; align-self: center; }
-/* The section bar floats as a second, slimmer pill under the main one */
-.subnav-inner { max-width: 1260px; margin: 6px auto 0; padding: 0 10px; border-radius: 12px; display: flex; align-items: center; gap: 16px; overflow-x: auto; scrollbar-width: none; }
+/* The section bar floats as a slim pill under the header */
+.subnav-inner { background: var(--glass); border: 1px solid var(--glass-edge); backdrop-filter: saturate(160%) blur(20px); -webkit-backdrop-filter: saturate(160%) blur(20px); box-shadow: inset 0 1px 0 var(--edge-hi), var(--lift); }
+.subnav-inner { margin: 6px var(--gutter) 8px; padding: 0 10px; border-radius: 12px; display: flex; align-items: center; gap: 16px; overflow-x: auto; scrollbar-width: none; }
 .subnav-inner::-webkit-scrollbar { display: none; }
 .subnav-title { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: .85rem; letter-spacing: -0.01em; white-space: nowrap; color: var(--tc); }
 .subnav-title svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
@@ -610,14 +635,9 @@ pre, code, textarea { font-variant-ligatures: none; font-feature-settings: "liga
 .compact .side-tools .side-toggle { width: 100%; }
 
 /* ---------- global search ---------- */
-.search-btn { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 6px 0 11px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; font: inherit; font-size: .85rem; flex-shrink: 0; }
-.search-btn:hover { border-color: var(--line-strong); color: var(--text); }
-.search-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
-.search-btn .keys { display: inline-flex; gap: 3px; }
 /* Keycaps: a raised key with a hard bottom edge */
 kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; font: 500 .66rem var(--mono); border-radius: 5px; color: var(--muted);
   border: 1px solid var(--line-strong); background: linear-gradient(var(--surface), var(--surface-2)); box-shadow: 0 1.5px 0 var(--line-strong), inset 0 1px 0 var(--edge-hi); }
-@media (max-width: 1260px) { .search-btn span, .search-btn .keys { display: none; } .search-btn { width: 34px; padding: 0; justify-content: center; } }
 
 /* Command palette (Ctrl+K): a glass panel that drops in from the top bar */
 dialog#search-dlg { max-width: min(660px, calc(100vw - 32px)); margin-top: 9vh; }
@@ -753,12 +773,12 @@ pre[id^="trres-"], pre[id^="trrun-"] { white-space: pre-wrap; }
 /* ===========================================================
    Folder tree (AI / LLM): the section as files and folders, styled like the console
    =========================================================== */
-.tree-layout { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 22px; align-items: start; }
-.tree { position: sticky; top: 80px; max-height: calc(100vh - 96px); overflow-y: auto; scrollbar-width: thin; padding: 10px 8px 14px;
+.tree-layout { display: grid; grid-template-columns: clamp(250px, 19vw, 340px) minmax(0, 1fr); gap: clamp(18px, 2vw, 32px); align-items: start; }
+.tree { position: sticky; top: calc(var(--head-h) + 14px); max-height: calc(100vh - var(--head-h) - 30px); overflow-y: auto; scrollbar-width: thin; padding: 10px 8px 14px;
   --tree-line: color-mix(in srgb, var(--muted) 55%, transparent);
   border: 1px solid var(--line-strong); border-radius: 6px; background: var(--code-bg); color: var(--code-text); font: .76rem/1.4 var(--mono);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--surface-2) 70%, transparent), var(--shadow); }
-.tree-main .ax-bar, .tree-main .iv-bar { top: 80px; }
+.tree-main .ax-bar, .tree-main .iv-bar { top: calc(var(--head-h) + 10px); }
 .tr-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 0 6px 8px; margin-bottom: 6px; border-bottom: 1px dashed var(--line-strong);
   color: var(--muted); font-size: .66rem; letter-spacing: .03em; text-transform: uppercase; }
 .tr-tools { display: flex; gap: 8px; }
@@ -783,7 +803,7 @@ pre[id^="trres-"], pre[id^="trrun-"] { white-space: pre-wrap; }
 .tr-row.on .tr-m, .tr-row.on .tr-n { color: inherit; }
 .tr-row.holds { box-shadow: inset 2px 0 0 var(--accent); }
 .tr-mobile { display: none; }
-@media (max-width: 860px) {
+@media (max-width: 980px) {
   .tree-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .tree { position: static; max-height: none; }
   .tr-mobile { display: flex; align-items: center; gap: 6px; width: 100%; height: 34px; padding: 0 4px; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }

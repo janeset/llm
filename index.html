@@ -31,18 +31,21 @@
       <span class="brand-text"><b>AI Prep</b><small>LLM engineering</small></span>
     </button>
     <nav id="nav" aria-label="Main">
-      <button title="Home (H)" data-nav="home" data-key="h" class="active"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg><span><i class="nk" aria-hidden="true">[H]</i> Home</span></button>
-      <span class="nav-sep" aria-hidden="true"></span>
-      <button title="AI / LLM (A)" data-track="ai" data-key="a"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg><span><i class="nk" aria-hidden="true">[A]</i> AI / LLM</span></button>
-      <button title="Claude &amp; Anthropic (C)" data-nav="claude" data-key="c"><svg viewBox="0 0 24 24"><path d="M4 19.5V6a2 2 0 0 1 2-2h12v14H6a2 2 0 0 0-2 2z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H18M8.5 8h6M8.5 11.5h4"/></svg><span><i class="nk" aria-hidden="true">[C]</i> Claude &amp; Anthropic</span></button>
-      <button title="Jobs: interview, roles and companies (J)" data-jobs data-key="j"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/></svg><span><i class="nk" aria-hidden="true">[J]</i> Jobs</span></button>
-      <span class="nav-sep" aria-hidden="true"></span>
-      <button title="Settings (S)" data-nav="settings" data-key="s"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span><i class="nk" aria-hidden="true">[S]</i> Settings</span></button>
+      <button title="Home (H)" data-nav="home" data-key="h" class="active">Home</button>
+      <div class="dd"><button title="AI / LLM (A)" data-track="ai" data-key="a" aria-haspopup="true">AI / LLM <svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button><div class="dd-panel" data-menu="ai"></div></div>
+      <button title="Claude &amp; Anthropic (C)" data-nav="claude" data-key="c">Claude &amp; Anthropic</button>
+      <div class="dd"><button title="Jobs: interview, roles and companies (J)" data-jobs data-key="j" aria-haspopup="true">Jobs <svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button><div class="dd-panel" data-menu="jobs"></div></div>
+      <button title="Settings (S)" data-nav="settings" data-key="s">Settings</button>
     </nav>
-    <button class="search-btn" id="search-open" title="Search (Ctrl+K)" aria-label="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Search</span><span class="keys"><kbd>Ctrl</kbd><kbd>K</kbd></span></button>
-    <button class="console-btn" id="console-open" title="Console (`)" aria-label="Open the console"><i class="nk" aria-hidden="true">[`]</i><span>Console</span></button>
-    <button class="icon-btn" id="theme-quick" title="Toggle light / dark" aria-label="Toggle light or dark theme"></button>
+    <div class="top-r">
+      <button class="icon-btn" id="search-open" title="Search (Ctrl+K)" aria-label="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+      <button class="icon-btn" id="theme-quick" title="Toggle light / dark" aria-label="Toggle light or dark theme"></button>
+      <button class="pill-btn console-btn" id="console-open" title="Console (`)" aria-label="Open the console">Console <kbd aria-hidden="true">`</kbd></button>
+      <button class="pill-btn solid" id="top-cta">Start here</button>
+      <button class="icon-btn menu-btn" id="menu-open" aria-label="Menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    </div>
   </div>
+  <div class="menu-sheet" id="menu-sheet"></div>
   <nav id="subnav" class="subnav" aria-label="Section" hidden></nav>
 </header>
 <main id="view"></main>
