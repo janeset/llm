@@ -204,18 +204,21 @@ const views = {
 // ---------- wiring ----------
 let tab = "home";
 function render() {
-  const sec = sectionOf(tab);
-  if (sec === "ai") $("#view").innerHTML = trackView(sec, tab.split(":")[1]);
-  else if (sec === "roles") $("#view").innerHTML = roleView(tab.split(":")[1]);
-  else if (sec === "interview") $("#view").innerHTML = interviewView(tab.split(":")[1]);
-  else $("#view").innerHTML = (views[tab] || views.home)();
+  const sec = sectionOf(tab), treeTop = document.querySelector(".tree")?.scrollTop;
+  let html = sec === "ai" ? trackView(sec, tab.split(":")[1]) : sec === "roles" ? roleView(tab.split(":")[1])
+    : sec === "interview" ? interviewView(tab.split(":")[1]) : (views[tab] || views.home)();
+  // Interview, Roles and Companies share the Jobs tab and its folder tree
+  if (isJobs(tab)) { S.lastJobs = tab; html = `<div class="tree-layout">${jobsTree()}<section class="tree-main">${html}</section></div>`; }
+  $("#view").innerHTML = html;
   renderNav();
   syncUrl();
+  placeTree(treeTop);
 }
 $("#nav").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
   if (b.dataset.track) { const k = b.dataset.track; go(S.lastTab?.[k] || defaultTab(k)); }
+  else if ("jobs" in b.dataset) go(S.lastJobs || "interview:mock");
   else if (b.dataset.nav) go(b.dataset.nav);
 });
 $("#subnav").addEventListener("click", (e) => { const b = e.target.closest("button[data-tab]"); if (b) go(b.dataset.tab); });

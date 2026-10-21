@@ -125,6 +125,8 @@ function ibmView(T, st) {
   const i = order.indexOf(sel), prev = order[i - 1], next = order[i + 1];
   const nav = `<div class="row between" style="margin-bottom:var(--gap)">${prev ? `<button class="btn" data-ibmsel="${prev}">&larr; ${esc(ibmLabel(prev))}</button>` : "<span></span>"}
     ${next ? `<button class="btn primary" data-ibmsel="${next}">${esc(ibmLabel(next))} &rarr;</button>` : ""}</div>`;
+  // In the folder tree the playlists are under ibm-videos/ on the left
+  if (treeMode(T.id)) return body + nav;
   return `<div class="ref-layout ${compact ? "compact" : ""}"><aside class="ref-side">${side}</aside><section class="ref-main">${body}${nav}</section></div>`;
 }
 

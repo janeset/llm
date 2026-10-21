@@ -7,7 +7,7 @@
 const CON_PAGES = {
   home: "home", ai: "ai:overview", roadmap: "ai:roadmap", learn: "ai:learn", ibm: "ai:ibm", videos: "ai:ibm",
   questions: "ai:questions", quiz: "ai:quiz", projects: "ai:labs", certs: "ai:certs", claude: "claude",
-  interview: "interview:mock", mock: "interview:mock", stories: "interview:stories", history: "interview:history",
+  jobs: "interview:mock", interview: "interview:mock", mock: "interview:mock", stories: "interview:stories", history: "interview:history",
   roles: "roles:overview", postings: "roles:postings", skills: "roles:skills", companies: "companies", settings: "settings",
 };
 const CON_HELP = [

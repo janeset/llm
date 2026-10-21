@@ -128,11 +128,12 @@ function ring(pct, label, size = 120) {
 // ---------------- navigation ----------------
 function renderNav() {
   const sec = sectionOf(tab);
-  document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("active", (b.dataset.nav && b.dataset.nav === tab) || (!!b.dataset.track && b.dataset.track === sec)));
+  document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("active", (b.dataset.nav && b.dataset.nav === tab) || (!!b.dataset.track && b.dataset.track === sec) || ("jobs" in b.dataset && isJobs(tab))));
   showActiveNav();
   const sub = $("#subnav");
   if (!sub) return;
-  if (!sec) { sub.hidden = true; sub.innerHTML = ""; return; }
+  // No section bar outside a section, or where the folder tree takes its place
+  if (!sec || treeMode(sec) || isJobs(tab)) { sub.hidden = true; sub.innerHTML = ""; return; }
   const items = sec === "interview" ? IV_TABS.map(([k, l]) => ["interview:" + k, l]) : TRACK_TABS(sec).map(([k, l]) => [sec + ":" + k, l]);
   sub.hidden = false;
   sub.innerHTML = `<div class="subnav-inner"><span class="subnav-title t-${sec}">${TRACK_ICON[sec]}${sec === "interview" ? "Interview" : esc(TRACKS[sec].name)}</span>
@@ -252,16 +253,122 @@ function homeView() {
 // ---------------- track pages ----------------
 function trackView(id, sub) {
   const T = TRACKS[id], st = trState(id);
-  switch (sub) {
-    case "roadmap": return trRoadmap(T, st);
-    case "learn": return trLearn(T, st);
-    case "questions": return trQuestions(T, st);
-    case "quiz": return trQuiz(T, st);
-    case "labs": return trLabs(T, st);
-    case "certs": return trCerts(T, st);
-    case "ibm": return ibmView(T, st);
-    default: return trOverview(T, st);
-  }
+  const page = (() => {
+    switch (sub) {
+      case "roadmap": return trRoadmap(T, st);
+      case "learn": return trLearn(T, st);
+      case "questions": return trQuestions(T, st);
+      case "quiz": return trQuiz(T, st);
+      case "labs": return trLabs(T, st);
+      case "certs": return trCerts(T, st);
+      case "ibm": return ibmView(T, st);
+      default: return trOverview(T, st);
+    }
+  })();
+  return treeMode(id) ? `<div class="tree-layout">${treeView(T, st, sub)}<section class="tree-main">${page}</section></div>` : page;
+}
+
+// ---------------- folder tree ----------------
+// AI / LLM and Jobs (Interview, Roles, Companies) are browsed like a file tree, in the style of the console, in
+// place of the tab bar: pages are files, lessons sit in module folders under learn/, builds under projects/.
+// Which folders are open is saved (S.tree); a folder never toggled is open when it holds the current page.
+const TREE_TRACKS = ["ai", "roles"];
+const treeMode = (id) => TREE_TRACKS.includes(id);
+const isJobs = (t) => ["interview", "roles"].includes(sectionOf(t)) || t === "companies";
+// "How LLMs work & calling models" → "how-llms-work", "What's popular" → "whats-popular"
+const fileName = (s) => slugOf(String(s).replace(/['’]/g, "").split(/:| \(| & | - | — /)[0]);
+const ICON_FOLDER = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v8.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>`;
+let treePaths = [];
+// The pieces a tree is built from, for the page whose key is `at`. That page's name is kept (kit.here)
+// for the folded tree on phones.
+function treeKit(at) {
+  const saved = (S.tree = S.tree || {}), kit = { paths: [], here: "" };
+  kit.m = (s, cls = "") => `<span class="tr-m ${cls}">${s}</span>`;
+  kit.file = (key, label, attrs, meta = "", full = label) => {
+    const on = at === key;
+    if (on) kit.here = full;
+    return `<li><button class="tr-row tr-file ${on ? "on" : ""}" ${attrs} title="${esc(full)}" aria-label="${esc(full)}"${on ? ' aria-current="page"' : ""}><span class="tr-n">${esc(label)}</span>${meta}</button></li>`;
+  };
+  // A closed folder that holds the current page is marked (data-holds), so its parents know to open too.
+  kit.dir = (path, label, kids, meta = "", full = label) => {
+    kit.paths.push(path);
+    kids = kids.filter(Boolean);
+    const holds = kids.some((k) => k.includes('aria-current="page"') || k.includes("data-holds")), open = path in saved ? saved[path] : holds;
+    return `<li><button class="tr-row tr-dir ${!open && holds ? "holds" : ""}" data-tree="${path}" ${holds ? "data-holds" : ""} aria-expanded="${open}" title="${esc(full)}"><span class="tr-chev" aria-hidden="true">${open ? "▾" : "▸"}</span>${ICON_FOLDER}<span class="tr-n">${esc(label)}/</span>${meta}</button>${open ? `<ul>${kids.join("")}</ul>` : ""}</li>`;
+  };
+  return kit;
+}
+function treeShell(kit, root, title, rootMeta, items) {
+  treePaths = kit.paths;
+  return `<aside class="tree ${views._treeMob ? "" : "tr-shut"}">
+    <button class="tr-mobile" data-treemob aria-expanded="${!!views._treeMob}"><span class="tr-chev" aria-hidden="true">${views._treeMob ? "▾" : "▸"}</span>${ICON_FOLDER}<span class="tr-n">${esc(root)}/ <span class="tr-m">${esc(kit.here)}</span></span></button>
+    <div class="tr-head"><span>/ ${esc(title)}</span><span class="tr-tools"><button data-treeall="open">Expand</button><button data-treeall="shut">Collapse</button></span></div>
+    <nav class="tr-body" aria-label="${esc(title)} pages"><div class="tr-root">${esc(root)}/ ${rootMeta}</div><ul>${items.filter(Boolean).join("")}</ul></nav></aside>`;
+}
+// The key of a track page in the tree, under `pre`: learn/<lesson>, labs/<project>, or the tab
+const trackAt = (T, st, sub, pre) => pre + (sub === "learn" ? "learn/" + (st.sel || defaultLesson(T)) : sub === "labs" && views._trlab ? "labs/" + views._trlab : sub || "overview");
+// A track's learn/ folder (module folders of lessons, then reference/) and its projects/ folder, under `pre`
+function trackFolders(T, kit, pre) {
+  const id = T.id, next = pathNext(T), p = trackProgress(id), { file, dir, m } = kit;
+  const lessonMeta = (t) => {
+    if (topicDone(T, t)) return m("✓", "ok");
+    if (t === next) return m("← next", "nx");
+    const n = exPassed(id, t);
+    return n ? m(`${n}/${t.exercises.length}`) : "";
+  };
+  const groups = T.groups.map(([g, tids]) => {
+    const ts = tids.map((tid) => topicById(T, tid)), done = ts.filter((t) => topicDone(T, t)).length;
+    return dir(`${pre}learn/${fileName(g)}`, fileName(g), ts.map((t) => file(`${pre}learn/${t.id}`, fileName(t.title), goLearn(id, t.id), lessonMeta(t), t.title)), m(`${done}/${ts.length}`), g);
+  });
+  const reference = dir(`${pre}learn/reference`, "reference", [
+    T.glossary && T.glossary.length ? file(`${pre}learn/glossary`, "glossary", goLearn(id, "glossary"), m(T.glossary.length), "Glossary") : "",
+    T.videos && T.videos.courses && T.videos.courses.length ? file(`${pre}learn/courses`, "full-courses", goLearn(id, "courses"), "", "Full courses") : "",
+    id === "ai" ? file(`${pre}learn/claude`, "claude-and-anthropic", goLearn(id, "claude"), "", "Claude & Anthropic") : ""]);
+  return {
+    learn: dir(`${pre}learn`, "learn", [...groups, reference], m(`${p.done}/${p.lessons}`), "Lessons"),
+    projects: dir(`${pre}labs`, "projects", [file(`${pre}labs`, "all-projects", `data-trgo="${id}|labs|"`, m(T.labs.length), `All ${T.labsName.toLowerCase()}`),
+      ...T.labs.map((l) => file(`${pre}labs/${l.id}`, fileName(l.title), `data-trgo="${id}|labs|${l.id}"`, labDone(id, l) ? m("✓", "ok") : labSteps(id, l) ? m(`${labSteps(id, l)}/${l.steps.length}`) : "", l.title))], m(`${p.labs}/${T.labs.length}`), T.labsName),
+  };
+}
+// AI / LLM: overview, roadmap, learn/, ibm-videos/, questions, quiz, projects/, certs
+function treeView(T, st, sub) {
+  const id = T.id, ibmSel = ibmOrder().includes(st.ibmSel) ? st.ibmSel : "overview";
+  const kit = treeKit(sub === "ibm" ? "ibm/" + ibmSel : trackAt(T, st, sub, "")), { file, dir, m } = kit, { learn, projects } = trackFolders(T, kit, "");
+  const ibm = dir("ibm", "ibm-videos", [
+    file("ibm/overview", "overview", `data-tribm="overview"`, "", "IBM Videos overview"),
+    dir("ibm/playlists", "playlists", IBM_PLAYLIST_GROUPS.map((g) => dir("ibm/playlists/" + fileName(g.name), fileName(g.name),
+      g.lists.map((pl) => file("ibm/pl:" + pl.id, fileName(pl.title), `data-tribm="pl:${pl.id}"`, ibmDone()[pl.id] ? m("✓", "ok") : m(plCount(pl) || ""), pl.title)), m(g.lists.length), g.name))),
+    dir("ibm/lessons", "by-lesson", ibmLessonGroups().map(([g, TT, tids]) => dir("ibm/lessons/" + fileName(g), fileName(g),
+      tids.map((tid) => file(`ibm/ls:${TT.id}:${tid}`, fileName(topicById(TT, tid).title), `data-tribm="ls:${TT.id}:${tid}"`, m(ibmLessonVideos(TT, tid).length), topicById(TT, tid).title)), m(tids.length), g)), "", "Videos by lesson"),
+    file("ibm/search", "search", `data-tribm="search"`, "", "Search all lesson videos")], "", "IBM Videos");
+  const wk = trackWeek(id);
+  return treeShell(kit, fileName(T.name), T.name, m(wk ? `week ${wk}/${T.weeks.length}` : "not started"), [
+    file("overview", "overview", `data-nav-go="${id}:overview"`), file("roadmap", "roadmap", `data-nav-go="${id}:roadmap"`, m(`${T.weeks.length} wk`)),
+    learn, ibm, file("questions", "questions", `data-nav-go="${id}:questions"`, m(T.questions.length)), file("quiz", "quiz", `data-nav-go="${id}:quiz"`, m(T.quiz.length)),
+    projects, file("certs", "certs", `data-nav-go="${id}:certs"`, m(T.certs.length))]);
+}
+// Jobs: interview/ (mock, stories, history), roles/ (the Roles track) and companies
+function jobsTree() {
+  const sec = sectionOf(tab), sub = tab.split(":")[1] || "", R = TRACKS.roles, iv = ivState();
+  const at = sec === "roles" ? trackAt(R, trState("roles"), sub, "roles/") : sec === "interview" ? "interview/" + (["stories", "history"].includes(sub) ? sub : "mock") : tab;
+  const kit = treeKit(at), { file, dir, m } = kit, { learn, projects } = trackFolders(R, kit, "roles/");
+  const ivMeta = { mock: S.ivActive ? m("in progress", "nx") : "", stories: m(iv.stories.length), history: m(iv.ivMocks.length) };
+  const rlMeta = { postings: m(allPostings().length), questions: m(R.questions.length), quiz: m(R.quiz.length) };
+  const rlTab = (k) => { const l = TRACK_TABS("roles").find(([x]) => x === k)[1]; return file("roles/" + k, fileName(l), `data-nav-go="roles:${k}"`, rlMeta[k] || "", "Roles: " + l); };
+  return treeShell(kit, "jobs", "Jobs", m(`${S.companies.length} applied`), [
+    dir("interview", "interview", IV_TABS.map(([k, l]) => file("interview/" + k, fileName(l), `data-nav-go="interview:${k}"`, ivMeta[k], "Interview: " + l)), m(`${iv.ivMocks.length} mocks`), "Interview"),
+    dir("roles", "roles", [rlTab("overview"), rlTab("skills"), rlTab("postings"), learn, rlTab("questions"), rlTab("quiz"), projects], "", "Roles"),
+    file("companies", "companies", `data-nav-go="companies"`, m(S.companies.length), "Companies")]);
+}
+// After a render: keep the tree's scroll position, and bring the current page's row into view inside it.
+function placeTree(prevTop) {
+  const tr = document.querySelector(".tree");
+  if (!tr || getComputedStyle(tr).position !== "sticky") return;
+  if (prevTop != null) tr.scrollTop = prevTop;
+  const on = tr.querySelector(".tr-row.on, .tr-row.holds");
+  if (!on) return;
+  const d = on.getBoundingClientRect().top - tr.getBoundingClientRect().top;
+  if (d < 40 || d > tr.clientHeight - 40) tr.scrollTop += d - tr.clientHeight / 3;
 }
 
 // "2 / 4 exercises" (or checks) under a lesson in lists.
@@ -364,6 +471,8 @@ function trLearn(T, st) {
     ${id === "ai" ? `<button class="side-i ${sel === "claude" ? "active" : ""}" data-trsel="${id}|claude"><span class="lbl">Claude &amp; Anthropic</span></button>` : ""}`;
   const body = sel === "courses" && T.videos.courses ? `<h2>Full courses</h2><p class="muted">Long-form videos to watch in chunks alongside the plan. ${verifiedTag(VIDEOS_VERIFIED)}</p><div class="card">${vids(T.videos.courses)}</div>`
     : sel === "glossary" && T.glossary ? trGlossary(T) : sel === "claude" && id === "ai" ? claudeLearnPage() : topicById(T, sel) ? trTopic(T, st, sel) : trMissing(T, sel);
+  // In the folder tree the lessons are already listed on the left
+  if (treeMode(id)) return body;
   return `<div class="ref-layout"><aside class="ref-side">${side}</aside><section class="ref-main">${body}</section></div>`;
 }
 
@@ -577,6 +686,12 @@ document.addEventListener("click", (e) => {
   const t = e.target;
   const el = (sel) => t.closest(sel);
   let b;
+  // Folder tree: on phones it folds away again once you pick a page
+  if (el(".tree .tr-file")) views._treeMob = false;
+  if ((b = el("[data-tree]"))) { (S.tree = S.tree || {})[b.dataset.tree] = b.getAttribute("aria-expanded") !== "true"; save(); return rerender(); }
+  if ((b = el("[data-treeall]"))) { S.tree = Object.fromEntries(treePaths.map((p) => [p, b.dataset.treeall === "open"])); save(); return rerender(); }
+  if ((b = el("[data-treemob]"))) { views._treeMob = !views._treeMob; return rerender(); }
+  if ((b = el("[data-tribm]"))) { trState("ai").ibmSel = b.dataset.tribm; save(); return go("ai:ibm"); }
   if ((b = el("[data-level]"))) { S.level = b.dataset.level; save(); return rerender(); }
   if ((b = el("[data-track-go]"))) { const k = b.dataset.trackGo; return go(S.lastTab?.[k] || defaultTab(k)); }
   if ((b = el("[data-nav-go]"))) return go(b.dataset.navGo);

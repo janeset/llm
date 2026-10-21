@@ -748,7 +748,51 @@ pre[id^="trres-"], pre[id^="trrun-"] { white-space: pre-wrap; }
 .lab-hint { margin: 4px 0 4px 31px; padding-top: 6px; }
 .lab-hint > summary { font-size: .88rem; }
 /* Long lesson titles on Previous / Next and long commands in project notes wrap instead of widening the page */
-.ref-main > .row.between .btn { white-space: normal; text-align: left; height: auto; min-height: 36px; }
+.ref-main > .row.between .btn, .tree-main > .row.between .btn { white-space: normal; text-align: left; height: auto; min-height: 36px; }
+
+/* ===========================================================
+   Folder tree (AI / LLM): the section as files and folders, styled like the console
+   =========================================================== */
+.tree-layout { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 22px; align-items: start; }
+.tree { position: sticky; top: 80px; max-height: calc(100vh - 96px); overflow-y: auto; scrollbar-width: thin; padding: 10px 8px 14px;
+  --tree-line: color-mix(in srgb, var(--muted) 55%, transparent);
+  border: 1px solid var(--line-strong); border-radius: 6px; background: var(--code-bg); color: var(--code-text); font: .76rem/1.4 var(--mono);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--surface-2) 70%, transparent), var(--shadow); }
+.tree-main .ax-bar, .tree-main .iv-bar { top: 80px; }
+.tr-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 0 6px 8px; margin-bottom: 6px; border-bottom: 1px dashed var(--line-strong);
+  color: var(--muted); font-size: .66rem; letter-spacing: .03em; text-transform: uppercase; }
+.tr-tools { display: flex; gap: 8px; }
+.tr-tools button { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.tr-tools button:hover { text-decoration: underline; text-underline-offset: 2px; }
+.tr-root { display: flex; justify-content: space-between; align-items: center; padding: 3px 6px; color: var(--accent); font-weight: 600; }
+.tree ul { list-style: none; margin: 0 0 0 9px; padding: 0; }
+.tree li { position: relative; margin: 0; padding-left: 12px; }
+/* Guide lines: a rail down each folder, a tick to each row, the rail stopping at the last row */
+.tree li::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; border-left: 1px solid var(--tree-line); }
+.tree li:last-child::before { bottom: auto; height: 13px; }
+.tree li::after { content: ""; position: absolute; left: 0; top: 13px; width: 9px; border-top: 1px solid var(--tree-line); }
+.tr-row { display: flex; align-items: center; gap: 6px; width: 100%; height: 26px; padding: 0 6px; border: 0; border-radius: 4px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.tr-row:hover { background: var(--hover); }
+.tr-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-dir .tr-n { color: var(--text); font-weight: 500; }
+.tr-chev { width: 9px; flex-shrink: 0; color: var(--muted); font-size: .7rem; }
+.tr-row svg, .tr-mobile svg { width: 14px; height: 14px; flex-shrink: 0; fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
+.tr-m { flex-shrink: 0; color: var(--muted); font-size: .68rem; font-variant-numeric: tabular-nums; }
+.tr-m.ok { color: var(--ok); } .tr-m.nx { color: var(--accent); font-weight: 600; }
+.tr-row.on { background: var(--accent); color: var(--accent-ink); }
+.tr-row.on .tr-m, .tr-row.on .tr-n { color: inherit; }
+.tr-row.holds { box-shadow: inset 2px 0 0 var(--accent); }
+.tr-mobile { display: none; }
+@media (max-width: 860px) {
+  .tree-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .tree { position: static; max-height: none; }
+  .tr-mobile { display: flex; align-items: center; gap: 6px; width: 100%; height: 34px; padding: 0 4px; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+  .tree:not(.tr-shut) .tr-mobile { margin-bottom: 6px; }
+  .tree.tr-shut { padding-bottom: 10px; }
+  .tree.tr-shut .tr-head, .tree.tr-shut .tr-body { display: none; }
+  .tr-row { height: 32px; }
+  .tree li:last-child::before { height: 16px; } .tree li::after { top: 16px; }
+}
 .lab-step code, .callout code, .ex-help code { overflow-wrap: anywhere; }
 .lesson-body table { display: block; max-width: 100%; overflow-x: auto; }
 
