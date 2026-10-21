@@ -29,8 +29,9 @@ Then visit http://localhost:5176. Opening `index.html` directly also works, but 
 | Interview | Timed mock interviews (technical questions for AI Engineer, plus behavioural) with self-scoring; weak answers are flagged "Review again" in the question bank. STAR story bank with theme and skill coverage; history |
 | Roles | AI Engineer: skill demand across postings, self-rating and readiness, per-posting fit and prep notes, an **Add posting** form with skill suggestions, gap lessons, questions, quiz and projects |
 | Companies | What AI interviews look like at each tier of employer, and an application tracker linked to postings. The Toronto & Kitchener-Waterloo job market (example employers here, built-in local postings in Roles) is an optional setting, off by default, on Companies and Roles > Postings |
-| Settings | 9 themes, accent colour, text size, density, where you're starting from, plan start date, export / import |
-| Search | **Ctrl+K** (or **/**) searches lessons, Claude & Anthropic courses and certifications, questions, projects, role skills, postings, IBM videos and your stories |
+| Settings | 9 themes (Paper and Ink are the defaults for light and dark), accent colour, text size, density, single-key shortcuts on or off, where you're starting from, plan start date, export / import |
+| Search | **Ctrl+K** (or **/**) opens a command palette. Empty, it lists where to jump: your next lesson, the main pages, the console and a light / dark switch. Type to search lessons, Claude & Anthropic courses and certifications, questions, projects, role skills, postings, IBM videos and your stories; **Tab** switches between All, Lessons, Questions, Projects and Videos |
+| Console and shortcuts | The letter beside each page in the top bar opens it (**H** Home, **A** AI / LLM, **C** Claude & Anthropic, **I** Interview, **R** Roles, **O** Companies, **S** Settings), and **`** opens a console: `open softmax`, `next`, `week`, `progress`, `lessons`, `theme ink`, `search rag`, `help`. Shortcuts never fire while you're typing and can be turned off in Settings |
 
 Python exercises are auto-graded in the browser via [Pyodide](https://pyodide.org) (loaded from a CDN on first run, with a loading message and a 30-second timeout). Each exercise says above its code box to replace the `pass` placeholder; typing on that line replaces it, and an untouched starter is not run. Exercises have a stable `key`; progress is saved under it, so exercises can be reordered without moving anyone's progress.
 
@@ -47,7 +48,7 @@ one lesson (`#/ai/learn/sampl`). Anything else shows "Lesson not found".
 
 | File | Contents |
 | --- | --- |
-| `index.html`, `style.css`, `app.js` | App shell, design system / themes, Home / Companies / Settings and the Python runner |
+| `index.html`, `style.css`, `app.js` | App shell, design system / themes (a floating glass top bar, keycaps and palette after Linea Prompt; mono `[K]` labels, outlined chips and a console after Stripe Dot Dev; see [docs/design-inspiration.md](docs/design-inspiration.md)), Home / Companies / Settings and the Python runner |
 | `tracks.js` | Video helpers (including `IBM`), the track registry and `extendTrack` (loaded first) |
 | `ai.js`, `ai-more.js` | AI / LLM track content, and extra lessons (including Sampling in depth), exercises, questions and glossary merged into it |
 | `ai-zero.js` | The beginner lessons (AI from zero), plus short Learn addresses (`#/ai/learn/start`, `#/ai/learn/softmax`) |
@@ -61,7 +62,8 @@ one lesson (`#/ai/learn/sampl`). Anything else shows "Lesson not found".
 | `roleview.js` | Roles pages: demand, readiness, postings and the add-posting form |
 | `interview.js` | Mock interviews, behavioural question bank, STAR story bank and mock history |
 | `router.js` | URL routing (`#/ai/learn/rag`, `#/ai/ibm/...`, `#/interview/mock`...): refresh, Back/Forward and bookmarks |
-| `search.js` | Search index and the Ctrl+K dialog |
+| `search.js` | Search index, pages and commands, and the Ctrl+K command palette |
+| `console.js` | The console (**`** key) and the single-key page shortcuts |
 
 ## Keeping external links current
 

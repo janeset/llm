@@ -6,7 +6,7 @@
 <title>AI / LLM Prep</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <script>
   // Apply the saved theme before first paint so there's no flash.
   (function () {
@@ -16,6 +16,7 @@
     if (t === "system") t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     r.setAttribute("data-theme", t);
     r.setAttribute("data-density", s.density || "comfortable");
+    r.setAttribute("data-keys", s.keys === false ? "off" : "on");
     r.style.fontSize = { s: "14px", m: "15px", l: "16.5px" }[s.fontSize || "m"];
     if (s.accent) r.style.setProperty("--accent", s.accent);
   })();
@@ -30,17 +31,18 @@
       <span class="brand-text"><b>AI Prep</b><small>LLM engineering</small></span>
     </button>
     <nav id="nav" aria-label="Main">
-      <button title="Home" data-nav="home" class="active"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg><span>Home</span></button>
+      <button title="Home (H)" data-nav="home" data-key="h" class="active"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg><span><i class="nk" aria-hidden="true">[H]</i> Home</span></button>
       <span class="nav-sep" aria-hidden="true"></span>
-      <button title="AI / LLM" data-track="ai"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg><span>AI / LLM</span></button>
-      <button title="Claude &amp; Anthropic" data-nav="claude"><svg viewBox="0 0 24 24"><path d="M4 19.5V6a2 2 0 0 1 2-2h12v14H6a2 2 0 0 0-2 2z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H18M8.5 8h6M8.5 11.5h4"/></svg><span>Claude &amp; Anthropic</span></button>
-      <button title="Interview" data-track="interview"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg><span>Interview</span></button>
-      <button title="Roles" data-track="roles"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/></svg><span>Roles</span></button>
+      <button title="AI / LLM (A)" data-track="ai" data-key="a"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg><span><i class="nk" aria-hidden="true">[A]</i> AI / LLM</span></button>
+      <button title="Claude &amp; Anthropic (C)" data-nav="claude" data-key="c"><svg viewBox="0 0 24 24"><path d="M4 19.5V6a2 2 0 0 1 2-2h12v14H6a2 2 0 0 0-2 2z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H18M8.5 8h6M8.5 11.5h4"/></svg><span><i class="nk" aria-hidden="true">[C]</i> Claude &amp; Anthropic</span></button>
+      <button title="Interview (I)" data-track="interview" data-key="i"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg><span><i class="nk" aria-hidden="true">[I]</i> Interview</span></button>
+      <button title="Roles (R)" data-track="roles" data-key="r"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/></svg><span><i class="nk" aria-hidden="true">[R]</i> Roles</span></button>
       <span class="nav-sep" aria-hidden="true"></span>
-      <button title="Companies" data-nav="companies"><svg viewBox="0 0 24 24"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M3 21h18M8 8h3M8 12h3M8 16h3"/></svg><span>Companies</span></button>
-      <button title="Settings" data-nav="settings"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Settings</span></button>
+      <button title="Companies (O)" data-nav="companies" data-key="o"><svg viewBox="0 0 24 24"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M3 21h18M8 8h3M8 12h3M8 16h3"/></svg><span><i class="nk" aria-hidden="true">[O]</i> Companies</span></button>
+      <button title="Settings (S)" data-nav="settings" data-key="s"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span><i class="nk" aria-hidden="true">[S]</i> Settings</span></button>
     </nav>
-    <button class="search-btn" id="search-open" title="Search (Ctrl+K)" aria-label="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Search</span><kbd>Ctrl K</kbd></button>
+    <button class="search-btn" id="search-open" title="Search (Ctrl+K)" aria-label="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Search</span><span class="keys"><kbd>Ctrl</kbd><kbd>K</kbd></span></button>
+    <button class="console-btn" id="console-open" title="Console (`)" aria-label="Open the console"><i class="nk" aria-hidden="true">[`]</i><span>Console</span></button>
     <button class="icon-btn" id="theme-quick" title="Toggle light / dark" aria-label="Toggle light or dark theme"></button>
   </div>
   <nav id="subnav" class="subnav" aria-label="Section" hidden></nav>
@@ -61,6 +63,7 @@
 <script src="ibmvideos.js"></script>
 <script src="router.js"></script>
 <script src="search.js"></script>
+<script src="console.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

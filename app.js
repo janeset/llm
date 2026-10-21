@@ -20,8 +20,8 @@ function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e
 // ---------- appearance ----------
 const THEMES = [
   { id: "system", name: "System", desc: "Follows your device" },
-  { id: "light", name: "Paper", desc: "Clean and bright" },
-  { id: "dark", name: "Graphite", desc: "Calm, neutral dark" },
+  { id: "light", name: "Paper", desc: "Blueprint paper, indigo" },
+  { id: "dark", name: "Ink", desc: "Deep navy, teal accent" },
   { id: "midnight", name: "Midnight", desc: "Deep blue night" },
   { id: "nord", name: "Nord", desc: "Arctic, muted blues" },
   { id: "sand", name: "Sand", desc: "Warm paper tones" },
@@ -39,6 +39,7 @@ function applyTheme() {
   const r = document.documentElement, t = resolvedTheme();
   r.dataset.theme = t;
   r.dataset.density = S.density || "comfortable";
+  r.dataset.keys = S.keys === false ? "off" : "on";
   r.style.fontSize = { s: "14px", m: "15px", l: "16.5px" }[S.fontSize || "m"];
   if (S.accent) r.style.setProperty("--accent", S.accent); else r.style.removeProperty("--accent");
   const q = document.getElementById("theme-quick");
@@ -180,6 +181,11 @@ const views = {
         <div class="setting"><div><b>Density</b><div class="muted">Compact tightens spacing in cards and lists.</div></div>
           ${seg("data-dens", S.density || "comfortable", [["comfortable", "Comfortable"], ["compact", "Compact"]])}</div>
       </div>
+      <div class="card"><h3>Keyboard</h3>
+        <div class="setting"><div><b>Single-key shortcuts</b><div class="muted">The letter beside each page in the top bar opens it (<kbd>H</kbd> Home, <kbd>A</kbd> AI / LLM, <kbd>S</kbd> Settings...), and <kbd>\`</kbd> opens the console. They never fire while you're typing. Turn them off if they get in the way of a screen reader or voice control.</div></div>
+          ${seg("data-shortcuts", S.keys === false ? "off" : "on", [["on", "On"], ["off", "Off"]])}</div>
+        <div class="setting"><div><b>Always on</b><div class="muted"><kbd>Ctrl</kbd> <kbd>K</kbd> or <kbd>/</kbd> opens search, where <kbd>Tab</kbd> switches the filter. The console button in the top bar opens the console.</div></div></div>
+      </div>
       <div class="card"><h3>Your plan</h3>
         <div class="setting"><div><b>Where you're starting from</b><div class="muted">New to AI: AI from zero comes first. Know the basics: start at machine learning fundamentals, with AI from zero as an option.</div></div>
           ${seg("data-level", S.level || "new", LEVELS)}</div>
@@ -223,6 +229,7 @@ document.addEventListener("click", (e) => {
   if (ac) { S.accent = ac.dataset.accent || null; save(); applyTheme(); return render(); }
   if (t.dataset.fs) { S.fontSize = t.dataset.fs; save(); applyTheme(); return render(); }
   if (t.dataset.dens) { S.density = t.dataset.dens; save(); applyTheme(); return render(); }
+  if (t.dataset.shortcuts) { S.keys = t.dataset.shortcuts === "on"; save(); applyTheme(); return rerender(); }
   if (t.closest("#theme-quick")) { S.theme = LIGHT_THEMES.has(resolvedTheme()) ? "dark" : "light"; save(); applyTheme(); return render(); }
   if (t.closest("#brand")) return go("home");
   const vc = t.closest(".vcard");

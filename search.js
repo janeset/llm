@@ -4,10 +4,12 @@
 // Loaded before app.js; it only uses app.js / track globals at call time.
 
 const SEARCH_TYPES = [
-  // [type, label, weight]: weight breaks ties between equally good matches
-  ["lesson", "Lessons", 6], ["claude", "Claude & Anthropic", 5], ["question", "Interview questions", 4], ["lab", "Labs & projects", 4], ["skill", "Role skills", 4], ["posting", "Postings", 4],
-  ["story", "Your stories", 3], ["video", "IBM videos", 1],
+  // [type, label, weight, chip]: weight breaks ties between equally good matches; chip tags each result row
+  ["command", "Pages & commands", 5, "Go"], ["lesson", "Lessons", 6, "Lesson"], ["claude", "Claude & Anthropic", 5, "Claude"], ["question", "Interview questions", 4, "Question"],
+  ["lab", "Labs & projects", 4, "Project"], ["skill", "Role skills", 4, "Skill"], ["posting", "Postings", 4, "Posting"], ["story", "Your stories", 3, "Story"], ["video", "IBM videos", 1, "Video"],
 ];
+// The filter tabs across the top of the palette: [type ("" for everything), label]
+const PAL_FILTERS = [["", "All"], ["lesson", "Lessons"], ["question", "Questions"], ["lab", "Projects"], ["video", "Videos"]];
 const stripHtml = (h) => String(h || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&[#\w]+;/g, " ").replace(/\s+/g, " ").trim();
 
 // After navigating, bring an element into view under the sticky header and flash it.
@@ -62,7 +64,26 @@ function storyEntries() {
     hay: [s.title, s.s, s.t, s.a, s.r, (s.themes || []).join(" ")].join(" ").toLowerCase(), open: () => { views._ivEdit = s.id; go("interview:stories"); } }));
 }
 
-function runSearch(q) {
+// Pages and actions, built fresh each time because "Continue" and the theme toggle depend on current state.
+// With an empty query they're what the palette shows, so the next step is always one keystroke away.
+function commandEntries() {
+  const out = [], add = (title, sub, words, open) => out.push({ type: "command", title, sub, text: "", hay: (title + " " + sub + " " + words).toLowerCase(), open });
+  const next = pathNext(TRACKS.ai);
+  if (next) add(`Continue: ${next.title}`, "Your next lesson", "next lesson continue resume", () => { trState("ai").sel = next.id; go("ai:learn"); });
+  add("Home", "Page", "start today", () => go("home"));
+  add("AI / LLM: Learn", "Page", "lessons track", () => go("ai:learn"));
+  add("AI / LLM: Roadmap", "Page", "weeks plan schedule", () => go("ai:roadmap"));
+  add("Interview: Mock interview", "Page", "practice timed mock", () => go("interview:mock"));
+  add("Roles", "Page", "postings skills readiness jobs", () => go(S.lastTab?.roles || defaultTab("roles")));
+  add("Companies", "Page", "tracker applications employers", () => go("companies"));
+  add("Settings", "Page", "theme appearance accent backup export shortcuts keyboard", () => go("settings"));
+  add("Open the console", "Command · or press `", "terminal console shell commands", () => openConsole());
+  const dark = !LIGHT_THEMES.has(resolvedTheme());
+  add(`Switch to the ${dark ? "light" : "dark"} theme`, "Command", "theme appearance dark light mode", () => { S.theme = dark ? "light" : "dark"; save(); applyTheme(); render(); });
+  return out;
+}
+
+function runSearch(q, only = "") {
   q = q.trim().toLowerCase();
   if (!q) return [];
   if (!searchIndex) searchIndex = buildSearchIndex();
@@ -73,7 +94,8 @@ function runSearch(q) {
   const termRes = terms.map(re), phrase = re(q);
   const startRes = terms.map((t) => new RegExp("(^|[^a-z0-9])" + reEsc(t)));
   const hits = [];
-  for (const e of searchIndex.concat(storyEntries())) {
+  for (const e of searchIndex.concat(storyEntries(), commandEntries())) {
+    if (only && e.type !== only) continue;
     if (!termRes.every((r) => r.test(e.hay))) continue;
     const title = e.title.toLowerCase();
     let score = weight[e.type] * 6;
@@ -103,18 +125,25 @@ function markTerms(s, terms) {
 }
 
 // ---------------- dialog ----------------
-let searchHits = [], searchPos = 0;
-function openSearch() {
+let searchHits = [], searchPos = 0, palFilter = "", palReturn = null;
+// Opens the palette, optionally with a query already typed (the console's `search` command).
+function openSearch(q) {
   let dlg = document.getElementById("search-dlg");
   if (!dlg) {
     dlg = document.createElement("dialog");
     dlg.id = "search-dlg";
-    dlg.innerHTML = `<div class="card search-panel">
-      <label class="search">${ICON_SEARCH}<input id="gs-q" placeholder="Search lessons, questions, projects, postings, videos..." autocomplete="off" spellcheck="false" aria-label="Search" aria-controls="gs-res"></label>
+    dlg.innerHTML = `<div class="search-panel">
+      <label class="search">${ICON_SEARCH}<input id="gs-q" placeholder="Search lessons, questions, projects, or type a page..." autocomplete="off" spellcheck="false" aria-label="Search" aria-controls="gs-res"><kbd>esc</kbd></label>
+      <div class="pal-tabs" id="gs-tabs" role="tablist" aria-label="Filter results"></div>
       <div id="gs-res" class="gs-res" role="listbox"></div>
-      <div class="gs-foot muted"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></div></div>`;
+      <div class="gs-foot muted"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> move</span><span><kbd>&crarr;</kbd> open</span><span><kbd>Tab</kbd> filter</span><span class="r"><kbd>\`</kbd> console</span></div></div>`;
     document.body.appendChild(dlg);
     dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+    // Give focus back to where it was; otherwise it can stay on the hidden input, where keys (Enter included) still reach the palette
+    dlg.addEventListener("close", () => {
+      if (palReturn && palReturn !== document.body && document.contains(palReturn)) palReturn.focus();
+      else if (dlg.contains(document.activeElement)) document.activeElement.blur();
+    });
     $("#gs-q", dlg).addEventListener("input", (e) => { searchPos = 0; drawSearch(e.target.value); });
     $("#gs-q", dlg).addEventListener("keydown", (e) => {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -123,32 +152,46 @@ function openSearch() {
         searchPos = (searchPos + (e.key === "ArrowDown" ? 1 : -1) + searchHits.length) % searchHits.length;
         markActive();
       } else if (e.key === "Enter" && searchHits[searchPos]) { e.preventDefault(); pickHit(searchPos); }
+      else if (e.key === "Tab") { e.preventDefault(); setPalFilter(PAL_FILTERS[(PAL_FILTERS.findIndex(([t]) => t === palFilter) + (e.shiftKey ? -1 : 1) + PAL_FILTERS.length) % PAL_FILTERS.length][0]); }
     });
+    $("#gs-tabs", dlg).addEventListener("click", (e) => { const b = e.target.closest("[data-palf]"); if (b) { setPalFilter(b.dataset.palf); $("#gs-q").focus(); } });
     $("#gs-res", dlg).addEventListener("click", (e) => { const r = e.target.closest("[data-gs]"); if (r) pickHit(+r.dataset.gs); });
     $("#gs-res", dlg).addEventListener("mousemove", (e) => { const r = e.target.closest("[data-gs]"); if (r && +r.dataset.gs !== searchPos) { searchPos = +r.dataset.gs; markActive(); } });
   }
+  if (dlg.open) return;
+  palReturn = document.activeElement; palFilter = "";
   dlg.showModal();
-  const inp = $("#gs-q", dlg); inp.select(); drawSearch(inp.value);
+  const inp = $("#gs-q", dlg);
+  if (typeof q === "string") inp.value = q;
+  inp.select(); searchPos = 0; drawSearch(inp.value);
 }
+function setPalFilter(t) { palFilter = t; searchPos = 0; drawSearch($("#gs-q").value); }
+const chipOf = (type) => SEARCH_TYPES.find(([t]) => t === type)[3];
+const hitRow = (h, i, terms, sn) => `<div class="gs-hit" role="option" data-gs="${i}"><div><div class="gs-t">${terms ? markTerms(h.title, terms) : esc(h.title)}</div>
+  <div class="gs-s muted">${esc(h.sub)}</div>${sn ? `<div class="gs-x muted">${sn}</div>` : ""}</div><span class="chip">${esc(chipOf(h.type))}</span></div>`;
 function drawSearch(q) {
-  const box = $("#gs-res");
+  const box = $("#gs-res"), hits = runSearch(q, palFilter);
+  // Filter tabs, with how many results each would show for this query
+  const all = q.trim() ? runSearch(q) : [];
+  $("#gs-tabs").innerHTML = PAL_FILTERS.map(([t, l]) => {
+    const n = q.trim() ? all.filter((h) => !t || h.type === t).length : 0;
+    return `<button role="tab" data-palf="${t}" aria-selected="${t === palFilter}" class="${t === palFilter ? "on" : ""}">${l}${n ? ` <small>${n > 59 ? "60+" : n}</small>` : ""}</button>`;
+  }).join("");
   if (!q.trim()) {
-    searchHits = [];
-    box.innerHTML = `<div class="gs-empty muted">Search across ${SEARCH_TYPES.map(([, l]) => l.toLowerCase()).join(", ")}.<br>Try <b>rag</b>, <b>embeddings</b>, <b>agents</b> or <b>pgvector</b>.</div>`;
+    if (palFilter) { searchHits = []; box.innerHTML = `<div class="gs-empty muted">Type to search ${esc(PAL_FILTERS.find(([t]) => t === palFilter)[1].toLowerCase())}.</div>`; return; }
+    searchHits = commandEntries();
+    box.innerHTML = `<div class="gs-group">Jump to</div>` + searchHits.map((h, i) => hitRow(h, i)).join("") +
+      `<div class="gs-empty muted">Or search lessons, questions, projects, postings and videos. Try <b>rag</b>, <b>embeddings</b> or <b>agents</b>.</div>`;
+    markActive();
     return;
   }
-  const hits = runSearch(q);
-  // group by type, groups ordered by their best hit
+  // grouped by type, groups ordered by their best hit; each row carries its type
   const groups = [];
-  hits.forEach((h) => { let g = groups.find((x) => x.type === h.type); if (!g) groups.push((g = { type: h.type, list: [] })); if (g.list.length < 8) g.list.push(h); });
+  hits.forEach((h) => { let g = groups.find((x) => x.type === h.type); if (!g) groups.push((g = { type: h.type, list: [] })); if (g.list.length < (palFilter ? 40 : 8)) g.list.push(h); });
   searchHits = groups.flatMap((g) => g.list);
-  if (!searchHits.length) { box.innerHTML = `<div class="gs-empty muted">No results for "${esc(q)}".</div>`; return; }
-  let i = 0;
+  if (!searchHits.length) { box.innerHTML = `<div class="gs-empty muted">No results for "${esc(q)}"${palFilter ? " in this filter. Press Tab for the others" : ""}.</div>`; return; }
   const terms = q.trim().toLowerCase().split(/\s+/);
-  box.innerHTML = groups.map((g) => `<div class="gs-group">${esc(SEARCH_TYPES.find(([t]) => t === g.type)[1])}</div>` + g.list.map((h) => {
-    const sn = snippet(h, q);
-    return `<div class="gs-hit" role="option" data-gs="${i++}"><div class="gs-t">${markTerms(h.title, terms)}</div><div class="gs-s muted">${esc(h.sub)}</div>${sn ? `<div class="gs-x muted">${sn}</div>` : ""}</div>`;
-  }).join("")).join("");
+  box.innerHTML = searchHits.map((h, i) => hitRow(h, i, terms, snippet(h, q))).join("");
   markActive();
 }
 function markActive() {
@@ -169,4 +212,4 @@ document.addEventListener("keydown", (e) => {
   if ((e.key === "k" || e.key === "K") && (e.ctrlKey || e.metaKey)) { e.preventDefault(); openSearch(); }
   else if (e.key === "/" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); openSearch(); }
 });
-document.addEventListener("click", (e) => { if (e.target.closest("#search-open")) openSearch(); });
+document.addEventListener("click", (e) => { if (e.target.closest("#search-open, [data-open-search]")) openSearch(); });

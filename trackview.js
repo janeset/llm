@@ -213,13 +213,21 @@ function homeView() {
       <div class="row">${s.start ? `<button class="btn primary" data-track-go="${id}">Continue &rarr;</button>` : `<button class="btn primary" data-trstart="${id}">Start the ${T.weeks.length}-week plan</button><button class="btn ghost" data-track-go="${id}">Explore</button>`}</div></div>`;
   };
 
+  // A preview of the command palette with the learner's next lessons; clicking it opens the real one.
+  const path = learnPath(T), at = Math.max(0, path.indexOf(next)), upNext = path.slice(at, at + 3);
+  const palPreview = `<button class="hero-pal" data-open-search aria-label="Open search (Ctrl+K)">
+      <span class="hp-q">${ICON_SEARCH}<i></i><span class="muted">Jump to a lesson, page or question</span><span class="keys"><kbd>Ctrl</kbd><kbd>K</kbd></span></span>
+      ${upNext.map((t, i) => `<span class="hp-row ${i ? "" : "on"}"><b>${i || !next ? "" : "Continue: "}${esc(t.title)}</b><span class="chip">${i || !next ? "Lesson" : "Go"}</span></span>`).join("")}
+      <span class="hp-foot"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> move</span><span><kbd>&crarr;</kbd> open</span><span><kbd>\`</kbd> console</span></span>
+    </button>`;
   return `<section class="card hero home-hero">
       <div style="position:relative;z-index:1">
         <div class="eyebrow">${esc(dateStr)}</div>
-        <h1>${hello}.</h1>
+        <h1>${esc(hello).replace(/(\w+)$/, '<span class="lol">$1</span>')}.</h1>
         <p>AI engineering prep for LLM roles: short lessons with small Python exercises checked right in your browser, then hands-on projects. You need basic Python; no API key needed to start.</p>
-        <div class="row" style="margin-top:14px">${main}</div>
+        <div class="row" style="margin-top:18px">${main}</div>
       </div>
+      ${palPreview}
     </section>
     ${S.level ? "" : levelPick()}
     ${started ? `<div class="row home-stats"><span class="badge plain">&#128293; ${st} day streak</span><span class="badge plain">${todayCount} thing${todayCount === 1 ? "" : "s"} done today</span></div>` : ""}
