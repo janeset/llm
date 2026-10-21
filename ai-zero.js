@@ -487,6 +487,140 @@ assert type(calls_in_budget(10, 1500, 3)) is int, "return a whole number"`,
     return int(budget / cost)` },
     ],
   },
+  {
+    id: "toolkit", zero: "ai", title: "Developer toolkit: terminal, Git, secrets, JSON and HTTP", yt: "command line git environment variables beginners tutorial",
+    body: `<p>Every project in this course, and every take-home assignment you'll get in interviews, is the same shape: a folder of code kept in <b>Git</b>, run from a <b>terminal</b>, holding a secret <b>API key</b> that must never be shared, and talking to a model over <b>HTTP</b> in <b>JSON</b>. This lesson covers the few tools you need for that, with an example of each.</p>
+      <h3>The terminal</h3>
+      <p>The <b>terminal</b> (also called the command line or shell) is a text window where you type commands instead of clicking. It always has a <b>current folder</b>, and commands act on it. The handful you'll use constantly:</p>
+      <table><tr><th>Command</th><th>What it does</th></tr>
+      <tr><td><code>cd projects/chat</code></td><td>Change into a folder (<code>cd ..</code> goes up one)</td></tr>
+      <tr><td><code>ls</code> (macOS, Linux) or <code>dir</code> (Windows)</td><td>List the files in the current folder</td></tr>
+      <tr><td><code>python app.py</code></td><td>Run a Python script</td></tr>
+      <tr><td><code>python -m venv .venv</code></td><td>Create a <b>virtual environment</b>: a private folder of installed packages for this one project, so projects don't break each other</td></tr>
+      <tr><td><code>source .venv/bin/activate</code> (macOS, Linux) or <code>.venv&#92;Scripts&#92;activate</code> (Windows)</td><td>Switch the terminal to use that environment</td></tr>
+      <tr><td><code>pip install anthropic</code></td><td>Install a package into the active environment; <code>pip freeze &gt; requirements.txt</code> records what you installed so others can repeat it</td></tr></table>
+      <h3>Git: saving versions of your code</h3>
+      <p><b>Git</b> records versions of a folder. A <b>repository</b> (repo) is a folder Git tracks; a <b>commit</b> is a saved snapshot with a message (<code>git add .</code> then <code>git commit -m "Add retry logic"</code>); <b>GitHub</b> is a website that hosts repos, and <code>git push</code> uploads your commits there. Your portfolio is a set of GitHub repos, so commit small, working steps with clear messages.</p>
+      <p>A file named <b>.gitignore</b> lists paths Git must never track. Every AI project should ignore at least <code>.env</code> (your secrets), <code>.venv/</code> (installed packages, which can be recreated) and <code>__pycache__/</code> (Python's compiled files). Create it <i>before</i> your first commit: once a key is committed, it stays in the history even if you delete the file later.</p>
+      <h3>Secrets and environment variables</h3>
+      <p>An <b>environment variable</b> is a named setting that lives in your terminal session or server, outside your code. Programs read them at run time; in Python, <code>os.environ.get("ANTHROPIC_API_KEY")</code>. For local work, people keep them in a <b>.env file</b>, one <code>NAME=value</code> per line, loaded by a package such as <code>python-dotenv</code>. The code can then be shared freely and the key can't leak with it. If a key ever lands in git or a chat, <b>revoke it</b> in the provider's console and make a new one.</p>
+      <h3>JSON and HTTP</h3>
+      <p><b>JSON</b> is text that looks like Python dicts and lists (<code>{"model": "x", "max_tokens": 100}</code>); <code>json.dumps</code> turns Python data into JSON text and <code>json.loads</code> turns it back. <b>HTTP</b> is how programs talk over the web. A request has a <b>method</b> (<code>GET</code> to read, <code>POST</code> to send data), a <b>URL</b>, <b>headers</b> (labelled extra information, such as <code>content-type: application/json</code> or the API key) and a <b>body</b> (the JSON). The response has a <b>status code</b> (200 OK, 4xx your request was wrong, 5xx the server failed), headers of its own (a 429 "too many requests" often carries <code>retry-after: 30</code>, meaning wait 30 seconds) and a body.</p>
+      <h3>Worked example</h3>
+      <p>The example reads a pretend .env file into a dictionary (printing only the names, never the key), checks the .gitignore, then builds the HTTP request a model SDK would send for you.</p>`,
+    example: `import json
+NL = chr(10)
+
+env_file = "# my secrets" + NL + "ANTHROPIC_API_KEY=sk-ant-example-123" + NL + "MODEL=claude-opus-5-5"
+settings = {}
+for line in env_file.split(NL):
+    if line and not line.startswith("#"):
+        name, value = line.split("=", 1)
+        settings[name] = value
+print("loaded:", sorted(settings))            # names only: never print a key
+
+gitignore = [".env", ".venv/", "__pycache__/"]
+print(".env is ignored by git:", ".env" in gitignore)
+
+request = {
+    "method": "POST",
+    "url": "https://api.example.com/v1/messages",
+    "headers": {"content-type": "application/json", "x-api-key": "(from the environment)"},
+    "body": json.dumps({"model": settings["MODEL"], "max_tokens": 100}),
+}
+print(request["method"], request["url"])
+print(request["body"])
+`,
+    cards: [
+      ["Where should an API key live during development?", "In an environment variable, usually loaded from a .env file that .gitignore lists, never in the code or the repo."],
+      ["You pushed a commit containing an API key. What do you do?", "Revoke the key in the provider's console and create a new one. Deleting the file or commit isn't enough: the key is in the history and may already be copied."],
+    ],
+    exercises: [
+      { key: "parse-env", prompt: "Write parse_env(text) that reads the lines of a .env file into a dictionary. Skip blank lines, comment lines starting with #, and lines without =. Split each line at the first = only, strip spaces from the name and value, and remove one pair of matching quotes (\" or ') around the value.",
+        example: `parse_env("# keys" + NL + "MODEL = small " + NL + 'GREETING="hi there"') returns\n{"MODEL": "small", "GREETING": "hi there"}`,
+        hint: "Loop over `text.split(chr(10))`. `line.split(\"=\", 1)` splits at the first = only. A value is quoted when it's at least 2 characters long, its first and last characters are the same, and that character is one of `['\"', \"'\"]`; then keep `value[1:-1]`.",
+        starter: "def parse_env(text):\n    pass\n",
+        tests: `NL = chr(10)
+text = "# keys" + NL + "ANTHROPIC_API_KEY=sk-ant-123" + NL + NL + "MODEL = small " + NL + 'GREETING="hi there"' + NL + "NAME='Ada'"
+assert parse_env(text) == {"ANTHROPIC_API_KEY": "sk-ant-123", "MODEL": "small", "GREETING": "hi there", "NAME": "Ada"}, parse_env(text)
+assert parse_env("URL=https://x.io/?a=1") == {"URL": "https://x.io/?a=1"}, "split at the first = only"
+assert parse_env("just text") == {}, "lines without = are skipped"
+assert parse_env("") == {}`,
+        solution: `def parse_env(text):
+    values = {}
+    for line in text.split(chr(10)):
+        line = line.strip()
+        if line == "" or line.startswith("#") or "=" not in line:
+            continue
+        name, value = line.split("=", 1)
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ['"', "'"]:
+            value = value[1:-1]
+        values[name.strip()] = value
+    return values` },
+      { key: "gitignore", prompt: "Write is_ignored(path, patterns) with simplified .gitignore rules. path uses / between folders, like \"src/app.py\". A pattern ending in / (\".venv/\") matches when any folder in the path has that name. A pattern starting with *. (\"*.log\") matches file names ending in that extension. Any other pattern matches when the file name (the last part of the path) is exactly the pattern.",
+        example: `pats = [".env", ".venv/", "*.log"]\nis_ignored("config/.env", pats) returns True\nis_ignored(".env.example", pats) returns False`,
+        hint: "`parts = path.split(\"/\")`: the folders are `parts[:-1]` and the file name is `parts[-1]`. For a folder pattern compare `pattern[:-1]` with each folder; for `*.ext` use `name.endswith(pattern[1:])`.",
+        starter: "def is_ignored(path, patterns):\n    pass\n",
+        tests: `pats = [".env", ".venv/", "__pycache__/", "*.log"]
+assert is_ignored(".env", pats) is True
+assert is_ignored("config/.env", pats) is True, "a file-name pattern matches in any folder"
+assert is_ignored(".venv/lib/site.py", pats) is True
+assert is_ignored("src/__pycache__/app.pyc", pats) is True
+assert is_ignored("logs/run.log", pats) is True
+assert is_ignored("app.py", pats) is False
+assert is_ignored(".env.example", pats) is False, "the example file (with no real values) is meant to be committed"`,
+        solution: `def is_ignored(path, patterns):
+    parts = path.split("/")
+    folders, name = parts[:-1], parts[-1]
+    for p in patterns:
+        if p.endswith("/"):
+            if p[:-1] in folders:
+                return True
+        elif p.startswith("*."):
+            if name.endswith(p[1:]):
+                return True
+        elif name == p:
+            return True
+    return False` },
+      { key: "headers", prompt: "Write parse_headers(raw) for HTTP response headers: raw has one \"Name: value\" per line. Return a dictionary with each name lowercased (header names ignore case) and each value stripped. Split each line at the first colon only, because values can contain colons.",
+        example: `parse_headers("Retry-After: 30" + NL + "Date: Tue, 21 Oct 2026 10:00:00 GMT") returns\n{"retry-after": "30", "date": "Tue, 21 Oct 2026 10:00:00 GMT"}`,
+        hint: "Loop over `raw.split(chr(10))`, skip lines without a colon, then `name, value = line.split(\":\", 1)`.",
+        starter: "def parse_headers(raw):\n    pass\n",
+        tests: `NL = chr(10)
+h = parse_headers("Content-Type: application/json" + NL + "Retry-After: 30" + NL + "Date: Tue, 21 Oct 2026 10:00:00 GMT")
+assert h["content-type"] == "application/json"
+assert h["retry-after"] == "30", "names are lowercased"
+assert h["date"] == "Tue, 21 Oct 2026 10:00:00 GMT", "split at the first colon only"
+assert parse_headers("") == {}`,
+        solution: `def parse_headers(raw):
+    headers = {}
+    for line in raw.split(chr(10)):
+        if ":" not in line:
+            continue
+        name, value = line.split(":", 1)
+        headers[name.strip().lower()] = value.strip()
+    return headers` },
+      { key: "no-fallback-key", debug: true, prompt: "A teammate's load_api_key falls back to a key pasted into the code when the environment variable is missing. That key ends up in git, and on a new machine the app fails later with a confusing 401 error. Fix it: return the key when ANTHROPIC_API_KEY is set and not empty; otherwise raise RuntimeError with a message that names ANTHROPIC_API_KEY. (env is a dictionary standing in for os.environ.)",
+        example: `load_api_key({"ANTHROPIC_API_KEY": "sk-ant-real"}) returns "sk-ant-real"\nload_api_key({}) raises RuntimeError("Set ANTHROPIC_API_KEY ...")`,
+        hint: "Read the value with `env.get(\"ANTHROPIC_API_KEY\")` (no fallback). `if not key:` covers both missing (None) and empty. Fail early, with a message that tells the person exactly what to set.",
+        starter: `def load_api_key(env):
+    return env.get("ANTHROPIC_API_KEY", "sk-ant-api03-PASTE-YOUR-KEY-HERE")
+`,
+        tests: `assert load_api_key({"ANTHROPIC_API_KEY": "sk-ant-real"}) == "sk-ant-real"
+for env in [{}, {"ANTHROPIC_API_KEY": ""}]:
+    try:
+        load_api_key(env)
+        raise SystemExit("a missing or empty key must raise RuntimeError, not fall back to a pasted key")
+    except RuntimeError as e:
+        assert "ANTHROPIC_API_KEY" in str(e), "say which variable to set"`,
+        solution: `def load_api_key(env):
+    key = env.get("ANTHROPIC_API_KEY")
+    if not key:
+        raise RuntimeError("Set ANTHROPIC_API_KEY in your environment or .env file")
+    return key` },
+    ],
+  },
 ];
 
 extendTrack(AI, {

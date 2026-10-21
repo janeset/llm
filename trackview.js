@@ -229,10 +229,10 @@ function homeView() {
       <div class="card"><h3>A sustainable weekly rhythm</h3>
         <table><tr><th>Day</th><th>Focus</th></tr>
           <tr><td>Mon / Wed</td><td>One lesson + its exercises (60 min)</td></tr>
-          <tr><td>Tue / Thu</td><td>Project work: build, evaluate, write it up (60-90 min)</td></tr>
+          <tr><td>Tue / Thu</td><td>The week's build: build, evaluate, write it up (90 min)</td></tr>
           <tr><td>Fri</td><td>Interview questions out loud, or a mock interview (45 min)</td></tr>
-          <tr><td>Sat</td><td>The lesson videos for the week's topic, or a practice quiz (45 min)</td></tr>
-          <tr><td>Sun</td><td>Light review: glossary, flash cards, plan the week</td></tr></table>
+          <tr><td>Sat</td><td>The week's third lesson, or its videos and a practice quiz (60 min)</td></tr>
+          <tr><td>Sun</td><td>Finish the build's README, light review, plan the week (60-90 min)</td></tr></table>
         <p class="muted">Employers want evidence: a deployed RAG or agent project with an eval harness beats any certificate.</p></div>
       <div class="card"><div class="section-head"><h3>Your ${T.weeks.length} weeks</h3><button class="btn small ghost" data-trgo="ai|roadmap|">Roadmap &rarr;</button></div><div class="list">
         ${beginnerLevel() ? `<div class="li"><div><span class="t">Before week 1</span><div class="muted">AI from zero, at your own pace</div></div></div>` : ""}
@@ -280,7 +280,7 @@ function trOverview(T, st) {
       <div style="position:relative;z-index:1">
         <div class="eyebrow">${wk ? `Week ${wk} of ${T.weeks.length}` : "Not started yet"}</div>
         <h1>${esc(T.name)}</h1>
-        <p>${esc(T.tagline)}. ${wk ? `This week: <b style="color:var(--text)">${esc(w.title)}</b>.` : `An ${T.weeks.length}-week plan, about 4-6 hours a week.`}</p>
+        <p>${esc(T.tagline)}. ${wk ? `This week: <b style="color:var(--text)">${esc(w.title)}</b>.` : `${T.weeks.length} weeks, a build every week, about 8 hours a week.`}</p>
         <div class="row" style="margin-top:14px">
           ${nextTopic ? `<button class="btn primary" ${goLearn(id, nextTopic.id)}>${p.done ? "Continue" : "Start here"}: ${esc(nextTopic.title)} &rarr;</button>` : `<button class="btn primary" data-trgo="${id}|quiz|">Take a quiz &rarr;</button>`}
           ${st.start ? "" : `<button class="btn" data-trstart="${id}">Start the ${T.weeks.length}-week plan</button>`}
@@ -399,10 +399,10 @@ function zeroPos(T, t) {
 
 function exerciseCard(id, tid, ex, j, st) {
   const key = exKey(id, tid, ex), ref = `${id}|${tid}|${ex.key}`, rid = `trres-${id}-${tid}-${ex.key}`;
-  return `<div class="card ex-card"><h3 class="ex-title">Exercise ${j + 1}${st.ex[key] ? ' <span class="badge done">Passed</span>' : ""}</h3>
+  return `<div class="card ex-card"><h3 class="ex-title">Exercise ${j + 1}${ex.debug ? ' <span class="badge M">Debug this</span>' : ""}${st.ex[key] ? ' <span class="badge done">Passed</span>' : ""}</h3>
     <p>${md(ex.prompt)}</p>
     ${ex.example ? `<div class="ex-example"><div class="label">Example</div><pre>${esc(ex.example)}</pre></div>` : ""}
-    <p class="ex-instr" id="instr-${rid}">Replace the placeholder (<code>pass</code>) with your code, then press <b>Run tests</b>.</p>
+    <p class="ex-instr" id="instr-${rid}">${ex.debug ? "This code runs but has a bug. Find it and fix it, then press <b>Run tests</b>." : "Replace the placeholder (<code>pass</code>) with your code, then press <b>Run tests</b>."}</p>
     <textarea data-trcode="${ref}" aria-describedby="instr-${rid}" rows="${Math.max(5, ex.starter.split("\n").length + 2)}" spellcheck="false" aria-label="Your code for exercise ${j + 1}">${esc(S.code["tx:" + key] ?? ex.starter)}</textarea>
     <div class="row"><button class="btn primary small" data-trex="${ref}">Run tests</button><button class="btn small" data-trexreset="${ref}">Reset</button></div>
     <pre id="${rid}" class="muted" style="display:none"></pre>
@@ -434,7 +434,7 @@ function trTopic(T, st, tid) {
   const hasQ = T.questions.some((q) => q.topic === tid), hasQuiz = T.quiz.some((q) => q.topic === tid);
   return `<div class="label">${esc(group)}</div><h2>${esc(t.title)}</h2>${t.zero ? zeroPos(T, t) : ""}
     ${status ? `<p class="muted">${status}</p>` : ""}
-    <div class="card lesson-body">${t.body}${example}</div>${codes}
+    <div class="card lesson-body">${t.why ? `<p class="callout why"><b>Why it matters on the job:</b> ${t.why}</p>` : ""}${t.body}${example}</div>${codes}
     ${exs.length ? `<div class="label" style="margin:6px 0 8px">Exercises (run in your browser)</div>${exs.map((ex, j) => exerciseCard(id, tid, ex, j, st)).join("")}` : ""}
     ${checks.length ? `<div class="label" style="margin:6px 0 8px">Checks: answer each one correctly to complete this lesson</div>${checks.map((q, n) => checkCard(T, st, q, n + 1)).join("")}` : ""}
     ${t.cards && t.cards.length ? `<div class="card"><h3>Flash cards</h3><p class="muted">Say your answer, then reveal it. These are for review and don't affect completion.</p>${t.cards.map(([q, a], k) => { const key = `${id}:${tid}:${k}`; return `<div class="flash"><div class="row between"><b>${esc(q)}</b>
@@ -453,7 +453,7 @@ function trQuestions(T, st) {
   const got = T.questions.filter((q) => st.qa[q.id] === "got").length, rev = T.questions.filter((q) => st.qa[q.id] === "review").length;
   return pageHead(`Interview questions <span class="muted">${list.length}</span>`, "Say your answer out loud first (or write it down), then reveal the model answer and mark how you did.") +
     `<div class="card toolbar">
-      <select data-trqf="${id}|topic"><option value="">All topics</option>${T.topics.filter((t) => !t.zero).map((t) => `<option value="${t.id}" ${f.topic === t.id ? "selected" : ""}>${esc(t.title)}</option>`).join("")}</select>
+      <select data-trqf="${id}|topic"><option value="">All topics</option>${T.topics.filter((t) => !t.zero || T.questions.some((q) => q.topic === t.id)).map((t) => `<option value="${t.id}" ${f.topic === t.id ? "selected" : ""}>${esc(t.title)}</option>`).join("")}</select>
       <select data-trqf="${id}|status">${[["", "Any status"], ["new", "Not tried"], ["review", "Review again"], ["got", "Got it"]].map(([v, l]) => `<option value="${v}" ${f.status === v ? "selected" : ""}>${l}</option>`).join("")}</select>
       <span class="muted">${got} got it · ${rev} to review · ${T.questions.length - got - rev} not tried</span></div>` +
     (list.length ? list.map((q) => {
@@ -540,9 +540,10 @@ async function runTrackExercise(id, tid, k) {
   const ex = exByKey(id, tid, k), key = exKey(id, tid, ex), rid = `trres-${id}-${tid}-${k}`;
   const code = document.querySelector(`[data-trcode="${id}|${tid}|${k}"]`).value;
   const res = document.getElementById(rid);
-  // The untouched starter is only a placeholder: don't run it, say what to do instead.
+  // The untouched starter is only a placeholder (or, for a debug exercise, the bug): don't run it, say what to do instead.
   if (code.trim() === ex.starter.trim()) {
-    res.style.display = "block"; res.className = "M"; res.textContent = "Replace the placeholder (pass) with your code first, then press Run tests.";
+    res.style.display = "block"; res.className = "M";
+    res.textContent = ex.debug ? "Fix the bug in the code first, then press Run tests." : "Replace the placeholder (pass) with your code first, then press Run tests.";
     return;
   }
   S.code["tx:" + key] = code; save();

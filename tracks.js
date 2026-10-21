@@ -15,13 +15,15 @@ const verifiedTag = (d) => `<span class="verified" title="Links checked on ${esc
 
 const TRACKS = {};
 
-// Merge extra learning (cloud-more.js / ai-more.js) into a track. New groups/weeks replace the
+// Merge extra learning (ai-more.js, ai-zero.js, ai-modules.js) into a track. New groups/weeks replace the
 // old ones, and topics are re-ordered to follow the groups so Previous/Next matches the sidebar.
+// `why` sets a lesson's "Why it matters on the job" opener; `labs` adds projects after the existing ones.
 function extendTrack(T, x) {
   T.topics.push(...(x.topics || []));
   for (const [tid, html] of Object.entries(x.append || {})) { const t = T.topics.find((t) => t.id === tid); t.body += html; }
   for (const [tid, exs] of Object.entries(x.exercises || {})) { const t = T.topics.find((t) => t.id === tid); t.exercises = (t.exercises || []).concat(exs); }
   for (const [tid, cards] of Object.entries(x.cards || {})) { const t = T.topics.find((t) => t.id === tid); t.cards = t.cards.concat(cards); }
+  for (const [tid, why] of Object.entries(x.why || {})) T.topics.find((t) => t.id === tid).why = why;
   if (x.groups) T.groups = x.groups;
   if (x.weeks) T.weeks = x.weeks;
   const order = T.groups.flatMap(([, ids]) => ids);
@@ -29,6 +31,7 @@ function extendTrack(T, x) {
   T.questions.push(...(x.questions || []));
   T.quiz.push(...(x.quiz || []));
   T.glossary = (T.glossary || []).concat(x.glossary || []).sort((a, b) => a[0].localeCompare(b[0]));
+  T.labs.push(...(x.labs || []));
   T.certs.push(...(x.certs || []));
   for (const [cid, tids] of Object.entries(x.certTopics || {})) { const c = T.certs.find((c) => c.id === cid); c.topics = [...new Set(c.topics.concat(tids))]; }
   for (const [k, list] of Object.entries(x.videos || {})) T.videos[k] = (T.videos[k] || []).concat(list);

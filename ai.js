@@ -751,7 +751,7 @@ assert recall_at_k(["d1"], [], 5) == 0.0`,
           <li>Models may request <b>several tools in parallel</b>; run them and return all results together. Report failures as error results instead of crashing.</li>
           <li><b>Write tools like an API for a new teammate:</b> clear names, precise descriptions, constrained inputs (enums, which allow only listed values, and required fields), and helpful error messages.</li>
           <li><b>Security:</b> the model's arguments are untrusted input (they could be wrong, or steered by <button class="link-btn inline-link" data-trgo="ai|learn|safety">prompt injection</button>). Validate them, use <b>least privilege</b> (give each tool only the permissions it needs), and require human confirmation for destructive or costly actions.</li>
-          <li><b>MCP</b> (Model Context Protocol) is an open standard for packaging tools and data sources so any compatible app can use them.</li></ul>
+          <li><b>MCP</b> (Model Context Protocol) is an open standard for packaging tools and data sources so any compatible app can use them; see <button class="link-btn inline-link" data-trgo="ai|learn|mcp">MCP servers and Skills</button>.</li></ul>
         <p class="py-note"><b>Python note:</b> functions are values: you can store them in a dict (<code>{"add": add}</code>) and call them from it. <code>f(**args)</code> unpacks a dict into named arguments, so <code>f(**{"a": 2, "b": 3})</code> is <code>f(a=2, b=3)</code>. <code>lambda a, b: a + b</code> is a one-line unnamed function. <code>except Exception as e:</code> catches any error, and <code>str(e)</code> is its message.</p>`,
       example: `def get_status(company):
     return {"Shopify": "Interview on Friday"}.get(company, "No application found")

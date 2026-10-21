@@ -626,6 +626,7 @@ dl.star dd { margin: 0; white-space: pre-wrap; }
 .lesson-body ol li, .lesson-body ul li { margin-bottom: 4px; }
 .lesson-pos { margin: -4px 0 10px; color: var(--muted); }
 .py-note { border-left: 3px solid var(--line-strong); background: var(--surface-2); padding: 10px 14px; border-radius: 0 10px 10px 0; font-size: .9rem; }
+.lesson-body > .why { margin: 0 0 14px; }
 .going-further { margin: 12px 0; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 14px; }
 .going-further > summary { cursor: pointer; font-weight: 600; }
 .code-note { margin: 0 0 4px; font-size: .86rem; }
