@@ -12,13 +12,14 @@
   (function () {
     var s = {};
     try { s = JSON.parse(localStorage.getItem("ai-prep-v1")) || {}; } catch (e) {}
-    var t = s.theme || "system", r = document.documentElement;
+    var t = s.theme || "midnight", r = document.documentElement; // DEFAULT_THEME in app.js
     if (t === "system") t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     r.setAttribute("data-theme", t);
     r.setAttribute("data-density", s.density || "comfortable");
     r.setAttribute("data-keys", s.keys === false ? "off" : "on");
-    r.style.fontSize = { s: "14px", m: "15px", l: "16.5px" }[s.fontSize || "m"];
+    r.style.fontSize = { s: "14px", m: "16px", l: "17.5px", xl: "19px", xxl: "21px" }[s.fontSize || "m"] || "16px"; // FONT_SIZES in app.js
     if (s.accent) r.style.setProperty("--accent", s.accent);
+    if (s.treeW) r.style.setProperty("--tree-w", s.treeW + "px");
   })();
 </script>
 <link rel="stylesheet" href="style.css">
@@ -35,12 +36,12 @@
       <div class="dd"><button title="AI / LLM (A)" data-track="ai" data-key="a" aria-haspopup="true">AI / LLM <svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button><div class="dd-panel" data-menu="ai"></div></div>
       <button title="Claude &amp; Anthropic (C)" data-nav="claude" data-key="c">Claude &amp; Anthropic</button>
       <div class="dd"><button title="Jobs: interview, roles and companies (J)" data-jobs data-key="j" aria-haspopup="true">Jobs <svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button><div class="dd-panel" data-menu="jobs"></div></div>
-      <button title="Settings (S)" data-nav="settings" data-key="s">Settings</button>
     </nav>
     <div class="top-r">
       <button class="icon-btn" id="search-open" title="Search (Ctrl+K)" aria-label="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
       <button class="icon-btn" id="theme-quick" title="Toggle light / dark" aria-label="Toggle light or dark theme"></button>
       <button class="pill-btn console-btn" id="console-open" title="Console (`)" aria-label="Open the console">Console <kbd aria-hidden="true">`</kbd></button>
+      <button class="icon-btn" id="settings-open" data-key="s" title="Settings (S)" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       <button class="pill-btn solid" id="top-cta">Start here</button>
       <button class="icon-btn menu-btn" id="menu-open" aria-label="Menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     </div>

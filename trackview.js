@@ -35,6 +35,39 @@ const channelLink = (T, prefix = "") => T.channel ? `<a class="btn small ghost" 
 const goLearn = (id, tid) => `data-trgo="${id}|learn|${tid}"`;
 // `code` spans and **bold** in hints and notes (the text is escaped first).
 const md = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+// In exercise prompts, a call written as plain text (predict_tip(bill, rate)) reads as code; text already in <code> is left alone.
+const codeCalls = (html) => html.split(/(<code>.*?<\/code>)/).map((part, i) => i % 2 ? part : part.replace(/\b([A-Za-z_][\w.]*\([^()<>]*\))/g, "<code>$1</code>")).join("");
+
+// ---------------- syntax colours ----------------
+// Python coloured like Visual Studio Code's Dark+ theme (the .tk-* classes in style.css). Code blocks are
+// coloured after each render (highlightCode); exercise editors keep a coloured copy under the textarea.
+const PY_FLOW = new Set("if elif else for while break continue return try except finally raise with import from as pass yield assert del await async".split(" "));
+const PY_KW = new Set("def class lambda and or not in is None True False global nonlocal self".split(" "));
+const PY_TYPES = new Set("int float str list dict set tuple bool bytes object type Exception ValueError TypeError KeyError IndexError".split(" "));
+const PY_TOKEN = /(#[^\n]*)|([rRbBfFuU]{0,2}(?:"""[\s\S]*?(?:"""|$)|'''[\s\S]*?(?:'''|$)|"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?))|(\b\d[\d_]*(?:\.\d*)?(?:[eE][+-]?\d+)?j?\b)|(@[\w.]+)|([A-Za-z_]\w*)/g;
+function hlPy(src) {
+  let out = "", at = 0, prev = "";
+  for (const m of String(src).matchAll(PY_TOKEN)) {
+    const [w, com, str, num, dec, id] = m;
+    out += esc(src.slice(at, m.index)); at = m.index + w.length;
+    const c = com ? "c" : str ? "s" : num ? "n" : dec ? "f"
+      : PY_FLOW.has(id) ? "k2" : PY_KW.has(id) ? "k" : PY_TYPES.has(id) || prev === "class" ? "t" : prev === "def" || src[at] === "(" ? "f" : "v";
+    out += `<span class="tk-${c}">${esc(w)}</span>`;
+    prev = id || "";
+  }
+  return out + esc(src.slice(at));
+}
+// Colours every code block in `root` once and frames it as an editor window; run output (pre with an id) stays plain.
+function highlightCode(root) {
+  root.querySelectorAll("pre:not([id]):not(.hl)").forEach((p) => {
+    const src = p.textContent, lang = /^\s*[{[]/.test(src) ? "json" : /^\s*(\$ |pip |npm |npx |curl |git |cd |export |docker |uv )/m.test(src) && !/^\s*(def|import|from) /m.test(src) ? "shell" : "python";
+    p.innerHTML = hlPy(src); p.classList.add("hl");
+    const win = document.createElement("div");
+    win.className = "code-win";
+    win.innerHTML = `<div class="code-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="lang">${lang}</span></div>`;
+    p.replaceWith(win); win.appendChild(p);
+  });
+}
 
 // ---------------- learning path & completion ----------------
 // Where the learner is starting from (S.level): "new" puts AI from zero (ai-zero.js, topics with `zero` set)
@@ -51,6 +84,8 @@ const ZERO_PY_NOTE_HTML = () => `<p class="callout zero-note">These exercises us
 // Exercise progress is keyed by each exercise's stable `key`, so reordering exercises never moves progress.
 const exKey = (id, tid, ex) => `${id}:${tid}-${ex.key}`;
 const exPassed = (id, t) => (t.exercises || []).filter((ex) => trState(id).ex[exKey(id, t.id, ex)]).length;
+// Whether any exercise has passed yet. Only current exercises count: hidden progress kept from removed lessons (pz-*) doesn't.
+const anyPassed = () => Object.keys(TRACKS).some((id) => TRACKS[id].topics.some((t) => exPassed(id, t)));
 // A lesson without exercises is completed by its checks: the quiz questions on that topic, all answered correctly.
 function topicChecks(T, tid) {
   const t = topicById(T, tid);
@@ -128,8 +163,9 @@ function ring(pct, label, size = 120) {
 // ---------------- navigation ----------------
 function renderNav() {
   const sec = sectionOf(tab);
-  document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("active", (b.dataset.nav && b.dataset.nav === tab) || (!!b.dataset.track && b.dataset.track === sec) || ("jobs" in b.dataset && isJobs(tab))));
-  showActiveNav();
+  document.querySelectorAll("#nav > button, #nav > .dd > button").forEach((b) => b.classList.toggle("active", (b.dataset.nav && b.dataset.nav === tab) || (!!b.dataset.track && b.dataset.track === sec) || ("jobs" in b.dataset && isJobs(tab))));
+  $("#settings-open").classList.toggle("on", tab === "settings");
+  renderMenus();
   const sub = $("#subnav");
   if (!sub) return;
   // No section bar outside a section, or where the folder tree takes its place
@@ -139,23 +175,43 @@ function renderNav() {
   sub.innerHTML = `<div class="subnav-inner"><span class="subnav-title t-${sec}">${TRACK_ICON[sec]}${sec === "interview" ? "Interview" : esc(TRACKS[sec].name)}</span>
     <div class="subnav-tabs">${items.map(([k, l]) => `<button data-tab="${k}" class="${k === tab ? "active" : ""}">${esc(l)}</button>`).join("")}</div></div>`;
 }
-// On narrow screens the main nav scrolls sideways: keep the current tab in view, and fade the edge
-// that has more tabs behind it so people know to swipe.
-function navEdges() {
-  const n = $("#nav");
-  n.classList.toggle("more-left", n.scrollLeft > 1);
-  n.classList.toggle("more-right", n.scrollLeft + n.clientWidth < n.scrollWidth - 1);
-}
-let navWatched = false;
-function showActiveNav() {
-  const n = $("#nav"), a = n.querySelector("button.active");
-  if (!navWatched) { n.addEventListener("scroll", navEdges, { passive: true }); new ResizeObserver(navEdges).observe(n); navWatched = true; }
-  if (a && n.scrollWidth > n.clientWidth) {
-    const l = a.offsetLeft - n.offsetLeft, r = l + a.offsetWidth;
-    if (l < n.scrollLeft) n.scrollLeft = l - 24;
-    else if (r > n.scrollLeft + n.clientWidth) n.scrollLeft = r - n.clientWidth + 24;
-  }
-  navEdges();
+// The header's menus: the AI / LLM and Jobs dropdowns, the same links stacked in the phone menu sheet, and the
+// Continue pill. Rebuilt on every render, since they show progress and the current page.
+function renderMenus() {
+  const T = TRACKS.ai, next = pathNext(T), wk = trackWeek("ai"), iv = ivState(), started = anyPassed(), sec = sectionOf(tab);
+  const sel = tab === "ai:learn" && (trState("ai").sel || defaultLesson(T));
+  const item = (attrs, label, meta = "", on = false) => `<button class="mn-i ${on ? "on" : ""}" ${attrs}${on ? ' aria-current="page"' : ""}><span>${esc(label)}</span>${meta ? `<small>${esc(meta)}</small>` : ""}</button>`;
+  const col = (h, items) => `<div class="mn-col"><div class="mn-h">${esc(h)}</div>${items.join("")}</div>`;
+  const ai = [
+    col("Pages", TRACK_TABS("ai").map(([k, l]) => item(`data-nav-go="ai:${k}"`, l, "", tab === "ai:" + k))),
+    // Each module opens on its first unfinished lesson
+    col("Modules", T.groups.map(([g, tids]) => {
+      const ts = tids.map((tid) => topicById(T, tid)), done = ts.filter((t) => topicDone(T, t)).length;
+      return item(goLearn("ai", (ts.find((t) => !topicDone(T, t)) || ts[0]).id), g, `${done}/${ts.length}`, tids.includes(sel));
+    })),
+    col("Up next", [`<div class="mn-next">${next
+      ? `<span class="muted">${wk ? `Week ${wk} of ${T.weeks.length}` : "Plan not started yet"}</span><b>${esc(next.title)}</b><button class="btn primary small" ${goLearn("ai", next.id)}>${started ? "Continue" : "Start here"} &rarr;</button>`
+      : `<b>Every lesson is done.</b><button class="btn primary small" data-trgo="ai|quiz|">Take a quiz &rarr;</button>`}</div>`]),
+  ].join("");
+  const ivMeta = { stories: iv.stories.length, history: iv.ivMocks.length };
+  const jobs = [
+    col("Interview", IV_TABS.map(([k, l]) => item(`data-nav-go="interview:${k}"`, l, ivMeta[k] || "", tab === "interview:" + k))),
+    col("Roles", TRACK_TABS("roles").map(([k, l]) => item(`data-nav-go="roles:${k}"`, l, "", tab === "roles:" + k))),
+    col("Companies", [item(`data-nav-go="companies"`, "Tiers & tracker", `${S.companies.length} applied`, tab === "companies")]),
+  ].join("");
+  // Key hints; the single-key ones (.k) hide when shortcuts are off in Settings
+  const foot = (k) => `<div class="mn-foot"><span class="k"><kbd>${k}</kbd> opens the folder tree</span><span><kbd>Ctrl</kbd> <kbd>K</kbd> search</span><span class="k"><kbd>\`</kbd> console</span></div>`;
+  $('.dd-panel[data-menu="ai"]').innerHTML = `<div class="mn-cols">${ai}</div>${foot("A")}`;
+  $('.dd-panel[data-menu="jobs"]').innerHTML = `<div class="mn-cols">${jobs}</div>${foot("J")}`;
+  const top = (attrs, label, on, cols = "") => `<div class="mn-sec"><button class="mn-i mn-top ${on ? "on" : ""}" ${attrs}>${label}</button>${cols && `<div class="mn-cols">${cols}</div>`}</div>`;
+  $("#menu-sheet").innerHTML = top(`data-nav-go="home"`, "Home", tab === "home") + top(`data-track-go="ai"`, "AI / LLM", sec === "ai", ai)
+    + top(`data-nav-go="claude"`, "Claude &amp; Anthropic", tab === "claude") + top(`data-nav-go="${S.lastJobs || "interview:mock"}"`, "Jobs", isJobs(tab), jobs)
+    + top(`data-nav-go="settings"`, "Settings", tab === "settings") + `<div class="mn-sec"><button class="pill-btn" data-console-open>Console</button></div>`;
+  // The solid pill: the next lesson, or a quiz once every lesson is done
+  const cta = $("#top-cta");
+  cta.textContent = !next ? "Take a quiz" : started ? "Continue" : "Start here";
+  cta.dataset.trgo = next ? `ai|learn|${next.id}` : "ai|quiz|";
+  cta.title = next ? `Next lesson: ${next.title}` : "Every lesson is done";
 }
 // The page a top-level section opens on the first time.
 const defaultTab = (k) => (k === "interview" ? "interview:mock" : k + ":overview");
@@ -196,8 +252,7 @@ function homeView() {
   const st = streak(), todayCount = S.activity[today()] || 0;
   const T = TRACKS.ai, s = trState("ai"), wk = trackWeek("ai"), next = pathNext(T);
   // Before the first passed exercise, Home shows one action (Start here) and no zero-valued stats.
-  // Only current exercises count: hidden progress kept from removed lessons (pz-*) doesn't.
-  const started = Object.keys(TRACKS).some((id) => TRACKS[id].topics.some((t) => exPassed(id, t)));
+  const started = anyPassed();
   const main = !next ? `<button class="btn primary" data-trgo="ai|quiz|">Every lesson done. Take a quiz &rarr;</button>`
     : started ? `<button class="btn primary" ${goLearn("ai", next.id)}>Continue: ${esc(next.title)} &rarr;</button>`
     : `<button class="btn primary btn-lg" ${goLearn("ai", next.id)}>Start here &rarr;</button><span class="muted">First lesson: ${esc(next.title)}</span>`;
@@ -303,7 +358,8 @@ function treeShell(kit, root, title, rootMeta, items) {
   return `<aside class="tree ${views._treeMob ? "" : "tr-shut"}">
     <button class="tr-mobile" data-treemob aria-expanded="${!!views._treeMob}"><span class="tr-chev" aria-hidden="true">${views._treeMob ? "▾" : "▸"}</span>${ICON_FOLDER}<span class="tr-n">${esc(root)}/ <span class="tr-m">${esc(kit.here)}</span></span></button>
     <div class="tr-head"><span>/ ${esc(title)}</span><span class="tr-tools"><button data-treeall="open">Expand</button><button data-treeall="shut">Collapse</button></span></div>
-    <nav class="tr-body" aria-label="${esc(title)} pages"><div class="tr-root">${esc(root)}/ ${rootMeta}</div><ul>${items.filter(Boolean).join("")}</ul></nav></aside>`;
+    <nav class="tr-body" aria-label="${esc(title)} pages"><div class="tr-root">${esc(root)}/ ${rootMeta}</div><ul>${items.filter(Boolean).join("")}</ul></nav></aside>
+    <div class="tree-grip" role="separator" aria-orientation="vertical" aria-label="Resize the folder tree" tabindex="0" title="Drag to resize, double-click to reset"><i></i></div>`;
 }
 // The key of a track page in the tree, under `pre`: learn/<lesson>, labs/<project>, or the tab
 const trackAt = (T, st, sub, pre) => pre + (sub === "learn" ? "learn/" + (st.sel || defaultLesson(T)) : sub === "labs" && views._trlab ? "labs/" + views._trlab : sub || "overview");
@@ -360,6 +416,33 @@ function jobsTree() {
     dir("roles", "roles", [rlTab("overview"), rlTab("skills"), rlTab("postings"), learn, rlTab("questions"), rlTab("quiz"), projects], "", "Roles"),
     file("companies", "companies", `data-nav-go="companies"`, m(S.companies.length), "Companies")]);
 }
+// Tree width: drag the grip (or use the arrow keys on it), between 220px and 560px or 45% of the window.
+// Saved as S.treeW; double-click goes back to the default. applyTheme sets --tree-w from it.
+const TREE_MIN = 220, treeMax = () => Math.min(560, innerWidth * 0.45);
+function setTreeWidth(w, keep) {
+  S.treeW = w == null ? null : Math.round(Math.max(TREE_MIN, Math.min(treeMax(), w)));
+  if (S.treeW) document.documentElement.style.setProperty("--tree-w", S.treeW + "px"); else document.documentElement.style.removeProperty("--tree-w");
+  if (keep) save();
+}
+document.addEventListener("pointerdown", (e) => {
+  const grip = e.target.closest(".tree-grip");
+  if (!grip || e.button !== 0) return;
+  e.preventDefault();
+  const x0 = e.clientX, w0 = $(".tree").getBoundingClientRect().width;
+  grip.setPointerCapture(e.pointerId); grip.classList.add("drag"); document.body.classList.add("tree-dragging");
+  const move = (ev) => setTreeWidth(w0 + ev.clientX - x0);
+  const up = () => { grip.removeEventListener("pointermove", move); grip.classList.remove("drag"); document.body.classList.remove("tree-dragging"); save(); };
+  grip.addEventListener("pointermove", move);
+  grip.addEventListener("pointerup", up, { once: true });
+  grip.addEventListener("pointercancel", up, { once: true });
+});
+document.addEventListener("dblclick", (e) => { if (e.target.closest(".tree-grip")) setTreeWidth(null, true); });
+document.addEventListener("keydown", (e) => {
+  if (!e.target.closest?.(".tree-grip") || !/^Arrow(Left|Right)$/.test(e.key)) return;
+  e.preventDefault();
+  setTreeWidth($(".tree").getBoundingClientRect().width + (e.key === "ArrowRight" ? 20 : -20), true);
+});
+
 // After a render: keep the tree's scroll position, and bring the current page's row into view inside it.
 function placeTree(prevTop) {
   const tr = document.querySelector(".tree");
@@ -517,10 +600,11 @@ function zeroPos(T, t) {
 function exerciseCard(id, tid, ex, j, st) {
   const key = exKey(id, tid, ex), ref = `${id}|${tid}|${ex.key}`, rid = `trres-${id}-${tid}-${ex.key}`;
   return `<div class="card ex-card"><h3 class="ex-title">Exercise ${j + 1}${ex.debug ? ' <span class="badge M">Debug this</span>' : ""}${st.ex[key] ? ' <span class="badge done">Passed</span>' : ""}</h3>
-    <p>${md(ex.prompt)}</p>
+    <p>${codeCalls(md(ex.prompt))}</p>
     ${ex.example ? `<div class="ex-example"><div class="label">Example</div><pre>${esc(ex.example)}</pre></div>` : ""}
     <p class="ex-instr" id="instr-${rid}">${ex.debug ? "This code runs but has a bug. Find it and fix it, then press <b>Run tests</b>." : "Replace the placeholder (<code>pass</code>) with your code, then press <b>Run tests</b>."}</p>
-    <textarea data-trcode="${ref}" aria-describedby="instr-${rid}" rows="${Math.max(5, ex.starter.split("\n").length + 2)}" spellcheck="false" aria-label="Your code for exercise ${j + 1}">${esc(S.code["tx:" + key] ?? ex.starter)}</textarea>
+    <div class="code-win"><div class="code-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="lang">your code · python</span></div>
+      <div class="code-ed"><pre class="hl code-hl" aria-hidden="true">${hlPy(S.code["tx:" + key] ?? ex.starter)}\n</pre><textarea data-trcode="${ref}" aria-describedby="instr-${rid}" rows="${Math.max(5, ex.starter.split("\n").length + 2)}" spellcheck="false" wrap="off" aria-label="Your code for exercise ${j + 1}">${esc(S.code["tx:" + key] ?? ex.starter)}</textarea></div></div>
     <div class="row"><button class="btn primary small" data-trex="${ref}">Run tests</button><button class="btn small" data-trexreset="${ref}">Reset</button></div>
     <pre id="${rid}" class="muted" style="display:none"></pre>
     ${ex.hint ? `<details class="ex-help"><summary>Hint</summary><p>${md(ex.hint)}</p></details>` : ""}
@@ -549,7 +633,7 @@ function trTopic(T, st, tid) {
     <p class="muted code-note">For reference: this runs on your own computer with the tools installed${/anthropic|client\./.test(c.code) ? " and an API key (a paid account)" : ""}. You don't need to run it to complete this lesson.</p><pre>${esc(c.code)}</pre></div>`).join("");
   const vlist = (T.videos[tid] || []).concat(t.videos || []);
   const hasQ = T.questions.some((q) => q.topic === tid), hasQuiz = T.quiz.some((q) => q.topic === tid);
-  return `<div class="label">${esc(group)}</div><h2>${esc(t.title)}</h2>${t.zero ? zeroPos(T, t) : ""}
+  return `<div class="label lesson-crumb">${esc(group)}</div><h2>${esc(t.title)}</h2>${t.zero ? zeroPos(T, t) : ""}
     ${status ? `<p class="muted">${status}</p>` : ""}
     <div class="card lesson-body">${t.why ? `<p class="callout why"><b>Why it matters on the job:</b> ${t.why}</p>` : ""}${t.body}${example}</div>${codes}
     ${exs.length ? `<div class="label" style="margin:6px 0 8px">Exercises (run in your browser)</div>${exs.map((ex, j) => exerciseCard(id, tid, ex, j, st)).join("")}` : ""}
@@ -791,6 +875,11 @@ document.addEventListener("beforeinput", (e) => {
   const r = placeholderRange(ta);
   if (r) ta.setSelectionRange(r[0], r[1]);
 });
+// The coloured copy under an editor scrolls with it
+document.addEventListener("scroll", (e) => {
+  const ta = e.target;
+  if (ta.dataset && ta.dataset.trcode) { const p = ta.previousElementSibling; p.scrollTop = ta.scrollTop; p.scrollLeft = ta.scrollLeft; }
+}, true);
 document.addEventListener("focusin", (e) => {
   const ta = e.target, d = ta.dataset || {};
   if (!d.trcode) return;
@@ -804,7 +893,10 @@ document.addEventListener("focusin", (e) => {
 
 document.addEventListener("input", (e) => {
   const d = e.target.dataset || {};
-  if (d.trcode) { const [id, tid, k] = d.trcode.split("|"); S.code["tx:" + exKey(id, tid, exByKey(id, tid, k))] = e.target.value; save(); }
+  if (d.trcode) {
+    const [id, tid, k] = d.trcode.split("|"); S.code["tx:" + exKey(id, tid, exByKey(id, tid, k))] = e.target.value; save();
+    e.target.previousElementSibling.innerHTML = hlPy(e.target.value) + "\n";
+  }
   if (d.trgl) {
     views._trgl[d.trgl] = e.target.value; const pos = e.target.selectionStart; render();
     const el = document.querySelector(`[data-trgl="${d.trgl}"]`); el.focus(); el.setSelectionRange(pos, pos);

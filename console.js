@@ -149,7 +149,7 @@ function conRun(raw) {
       return conPrint(rows.map(([k, v]) => `<span class="dim">${k.padEnd(10)}</span>${esc(v)}`).join("\n"));
     }
     case "theme": {
-      if (!arg) return conPrint(THEMES.map((t) => `${(S.theme || "system") === t.id ? "<b>*</b>" : " "} ${conLink("theme " + t.name.toLowerCase(), t.name)}${" ".repeat(Math.max(1, 15 - t.name.length))}<span class="dim">${esc(t.desc)}</span>`).join("\n"));
+      if (!arg) return conPrint(THEMES.map((t) => `${(S.theme || DEFAULT_THEME) === t.id ? "<b>*</b>" : " "} ${conLink("theme " + t.name.toLowerCase(), t.name)}${" ".repeat(Math.max(1, 15 - t.name.length))}<span class="dim">${esc(t.desc)}</span>`).join("\n"));
       const k = arg.toLowerCase(), t = THEMES.find((x) => x.id === k || x.name.toLowerCase() === k);
       if (!t) return conPrint(`No theme called "${esc(arg)}". Type ${conLink("theme")} to list them.`, "err");
       S.theme = t.id; save(); applyTheme(); render();
@@ -162,14 +162,15 @@ function conRun(raw) {
   }
 }
 
-// Single-key shortcuts: the letters shown in the main nav, ` for the console. Off in Settings turns them all off.
+// Single-key shortcuts: each top bar button's data-key letter, ` for the console. Off in Settings turns them all off.
 document.addEventListener("keydown", (e) => {
   if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable || document.querySelector("dialog[open]")) return;
   if (e.key === "Escape") return closeConsole();
   if (S.keys === false) return;
   if (e.key === "`") { e.preventDefault(); return toggleConsole(); }
-  const b = e.key.length === 1 && document.querySelector(`#nav button[data-key="${e.key.toLowerCase()}"]`);
+  const b = e.key.length === 1 && document.querySelector(`.topbar button[data-key="${e.key.toLowerCase()}"]`);
   if (b) { e.preventDefault(); b.click(); }
 });
-document.addEventListener("click", (e) => { if (e.target.closest("#console-open")) toggleConsole(); });
+// The Console pill in the top bar, and its copy in the phone menu
+document.addEventListener("click", (e) => { if (e.target.closest("#console-open, [data-console-open]")) toggleConsole(); });

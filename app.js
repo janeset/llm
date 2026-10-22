@@ -18,21 +18,39 @@ let S = load();
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { alert("Could not save to browser storage."); } }
 
 // ---------- appearance ----------
+// Each theme pairs one base colour family with one accent (style.css has the palettes and where they come from).
 const THEMES = [
-  { id: "system", name: "System", desc: "Follows your device" },
-  { id: "light", name: "Paper", desc: "Blueprint paper, indigo" },
-  { id: "dark", name: "Ink", desc: "Deep navy, teal accent" },
-  { id: "midnight", name: "Midnight", desc: "Deep blue night" },
-  { id: "nord", name: "Nord", desc: "Arctic, muted blues" },
-  { id: "sand", name: "Sand", desc: "Warm paper tones" },
-  { id: "forest", name: "Forest", desc: "Dark with green accent" },
-  { id: "rose", name: "Rosé", desc: "Soft and light" },
-  { id: "contrast", name: "High contrast", desc: "Maximum legibility" },
+  { id: "system", name: "System", desc: "Follows your device: Paper or Ink" },
+  { id: "midnight", name: "Midnight", desc: "Deep blue + bright blue (default)" },
+  { id: "dark", name: "Ink", desc: "Deep navy + teal" },
+  { id: "tokyo", name: "Tokyo Night", desc: "Night blue + soft blue" },
+  { id: "mocha", name: "Catppuccin Mocha", desc: "Dark pastel + mauve" },
+  { id: "rosepine", name: "Rosé Pine", desc: "Muted purple + rose" },
+  { id: "dracula", name: "Dracula", desc: "Grey-purple + purple" },
+  { id: "kanagawa", name: "Kanagawa", desc: "Sumi ink + gold" },
+  { id: "gruvbox", name: "Gruvbox", desc: "Retro brown + orange" },
+  { id: "everforest", name: "Everforest", desc: "Green-grey + sage" },
+  { id: "nord", name: "Nord", desc: "Arctic grey + frost blue" },
+  { id: "forest", name: "Forest", desc: "Dark green + mint" },
+  { id: "peach", name: "Navy & Peach", desc: "Duotone: navy + peach" },
+  { id: "lime", name: "Violet & Lime", desc: "Duotone: ultraviolet + neon lime" },
+  { id: "contrast", name: "High contrast", desc: "Black + yellow, maximum legibility" },
+  { id: "light", name: "Paper", desc: "Blueprint paper + indigo", light: true },
+  { id: "latte", name: "Catppuccin Latte", desc: "Light pastel + mauve", light: true },
+  { id: "dawn", name: "Rosé Pine Dawn", desc: "Warm cream + pine", light: true },
+  { id: "solarized", name: "Solarized Light", desc: "Cream + blue", light: true },
+  { id: "crimson", name: "Crimson & Cream", desc: "Duotone: cream + crimson", light: true },
+  { id: "sand", name: "Sand", desc: "Warm paper + burnt orange", light: true },
+  { id: "rose", name: "Rosé", desc: "Blush white + pink", light: true },
 ];
-const LIGHT_THEMES = new Set(["light", "sand", "rose"]);
+const LIGHT_THEMES = new Set(THEMES.filter((t) => t.light).map((t) => t.id));
+// Text size: [key, label, root font size]. Everything is sized in rem, so this scales the whole interface.
+const FONT_SIZES = [["s", "Small", "14px"], ["m", "Default", "16px"], ["l", "Large", "17.5px"], ["xl", "Larger", "19px"], ["xxl", "Largest", "21px"]];
+const DEFAULT_THEME = "midnight"; // used until you pick one; index.html applies it before first paint too
 const ACCENTS = ["#5b5bd6", "#2f6fed", "#0f9d8f", "#16a34a", "#ea580c", "#e11d48", "#8b5cf6"];
 const darkQuery = window.matchMedia ? matchMedia("(prefers-color-scheme: dark)") : null;
-const resolvedTheme = () => { const t = S.theme || "system"; return t === "system" ? (darkQuery && darkQuery.matches ? "dark" : "light") : t; };
+// A saved theme that no longer exists falls back to the default
+const resolvedTheme = () => { const t = THEMES.some((x) => x.id === S.theme) ? S.theme : DEFAULT_THEME; return t === "system" ? (darkQuery && darkQuery.matches ? "dark" : "light") : t; };
 const ICON_SUN = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`;
 const ICON_MOON = `<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>`;
 function applyTheme() {
@@ -40,12 +58,14 @@ function applyTheme() {
   r.dataset.theme = t;
   r.dataset.density = S.density || "comfortable";
   r.dataset.keys = S.keys === false ? "off" : "on";
-  r.style.fontSize = { s: "14px", m: "15px", l: "16.5px" }[S.fontSize || "m"];
+  r.style.fontSize = (FONT_SIZES.find(([k]) => k === S.fontSize) || FONT_SIZES[1])[2];
   if (S.accent) r.style.setProperty("--accent", S.accent); else r.style.removeProperty("--accent");
+  if (S.treeW) r.style.setProperty("--tree-w", S.treeW + "px"); else r.style.removeProperty("--tree-w");
+  if (document.querySelector(".topbar-inner")) fitHeader(); // text size changes the header's width
   const q = document.getElementById("theme-quick");
   if (q) q.innerHTML = LIGHT_THEMES.has(t) ? ICON_MOON : ICON_SUN;
 }
-if (darkQuery) darkQuery.addEventListener("change", () => { if ((S.theme || "system") === "system") { applyTheme(); if (tab === "settings") render(); } });
+if (darkQuery) darkQuery.addEventListener("change", () => { if ((S.theme || DEFAULT_THEME) === "system") { applyTheme(); if (tab === "settings") render(); } });
 
 // ---------- helpers ----------
 const ICON_SEARCH = `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`;
@@ -163,26 +183,27 @@ const views = {
   },
 
   settings() {
-    const cur = S.theme || "system", T = TRACKS.ai, st = trState("ai");
+    const cur = THEMES.some((x) => x.id === S.theme) ? S.theme : DEFAULT_THEME, T = TRACKS.ai, st = trState("ai");
     const prev = (id) => `<div class="tp" data-theme="${id}"><div class="tp-card"><i class="l1"></i><i class="l2"></i><div class="row2"><i class="acc"></i><i class="ok"></i></div></div></div>`;
     const seg = (attr, val, opts) => `<div class="seg">${opts.map(([v, l]) => `<button ${attr}="${v}" class="${val === v ? "on" : ""}">${l}</button>`).join("")}</div>`;
     return pageHead("Settings", "Appearance, your plan, and backups. Everything is saved in this browser.") + `
       <div class="card">
         <div class="section-head"><h3>Theme</h3><span class="muted">Now showing: ${esc(THEMES.find((t) => t.id === resolvedTheme())?.name || "")}</span></div>
-        <div class="theme-grid">${THEMES.map((t) => `<button class="theme-card ${cur === t.id ? "on" : ""}" data-theme-pick="${t.id}">
+        ${[["Dark", THEMES.filter((t) => !t.light)], ["Light", THEMES.filter((t) => t.light)]].map(([h, ts]) => `<div class="label theme-group">${h}</div>
+        <div class="theme-grid">${ts.map((t) => `<button class="theme-card ${cur === t.id ? "on" : ""}" data-theme-pick="${t.id}">
           <div class="theme-prev">${t.id === "system" ? prev("light") + prev("dark") : prev(t.id)}</div>
           <div class="theme-meta"><span>${esc(t.name)}</span>${cur === t.id ? '<span class="check">&#10003;</span>' : ""}</div>
-          <div class="theme-desc">${esc(t.desc)}</div></button>`).join("")}</div>
+          <div class="theme-desc">${esc(t.desc)}</div></button>`).join("")}</div>`).join("")}
         <div class="setting"><div><b>Accent color</b><div class="muted">Use the theme's own accent, or pick one.</div></div>
           <div class="swatches"><button class="swatch auto ${!S.accent ? "on" : ""}" data-accent="" title="Theme default"></button>
             ${ACCENTS.map((c) => `<button class="swatch ${S.accent === c ? "on" : ""}" data-accent="${c}" style="background:${c}" title="${c}"></button>`).join("")}</div></div>
         <div class="setting"><div><b>Text size</b><div class="muted">Scales the whole interface.</div></div>
-          ${seg("data-fs", S.fontSize || "m", [["s", "Small"], ["m", "Default"], ["l", "Large"]])}</div>
+          ${seg("data-fs", S.fontSize || "m", FONT_SIZES)}</div>
         <div class="setting"><div><b>Density</b><div class="muted">Compact tightens spacing in cards and lists.</div></div>
           ${seg("data-dens", S.density || "comfortable", [["comfortable", "Comfortable"], ["compact", "Compact"]])}</div>
       </div>
       <div class="card"><h3>Keyboard</h3>
-        <div class="setting"><div><b>Single-key shortcuts</b><div class="muted">The letter beside each page in the top bar opens it (<kbd>H</kbd> Home, <kbd>A</kbd> AI / LLM, <kbd>S</kbd> Settings...), and <kbd>\`</kbd> opens the console. They never fire while you're typing. Turn them off if they get in the way of a screen reader or voice control.</div></div>
+        <div class="setting"><div><b>Single-key shortcuts</b><div class="muted"><kbd>H</kbd> Home, <kbd>A</kbd> AI / LLM, <kbd>C</kbd> Claude &amp; Anthropic, <kbd>J</kbd> Jobs, <kbd>S</kbd> Settings, and <kbd>\`</kbd> opens the console. They never fire while you're typing. Turn them off if they get in the way of a screen reader or voice control.</div></div>
           ${seg("data-shortcuts", S.keys === false ? "off" : "on", [["on", "On"], ["off", "Off"]])}</div>
         <div class="setting"><div><b>Always on</b><div class="muted"><kbd>Ctrl</kbd> <kbd>K</kbd> or <kbd>/</kbd> opens search, where <kbd>Tab</kbd> switches the filter. The console button in the top bar opens the console.</div></div></div>
       </div>
@@ -210,18 +231,57 @@ function render() {
   // Interview, Roles and Companies share the Jobs tab and its folder tree
   if (isJobs(tab)) { S.lastJobs = tab; html = `<div class="tree-layout">${jobsTree()}<section class="tree-main">${html}</section></div>`; }
   $("#view").innerHTML = html;
+  highlightCode($("#view"));
   renderNav();
   syncUrl();
   placeTree(treeTop);
+  // A menu stays open while focus is inside it (:focus-within), so let go of focus after a pick
+  if (document.activeElement?.closest(".dd")) document.activeElement.blur();
 }
 $("#nav").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
+  // A pick in a menu closes it even though the pointer is still over it; it opens again once the pointer
+  // leaves and comes back. The page itself opens through the data-nav-go / data-trgo handlers.
+  const dd = b.closest(".dd-panel")?.parentElement;
+  if (dd) {
+    if (dd.matches(":hover")) { dd.classList.add("shut"); dd.addEventListener("mouseleave", () => dd.classList.remove("shut"), { once: true }); }
+    return;
+  }
   if (b.dataset.track) { const k = b.dataset.track; go(S.lastTab?.[k] || defaultTab(k)); }
   else if ("jobs" in b.dataset) go(S.lastJobs || "interview:mock");
   else if (b.dataset.nav) go(b.dataset.nav);
 });
+// A menu opens under its link, shifted left when it would run past the window's right edge
+document.querySelectorAll(".dd").forEach((dd) => ["mouseenter", "focusin"].forEach((ev) => dd.addEventListener(ev, () => {
+  const p = $(".dd-panel", dd), over = dd.getBoundingClientRect().left - 8 + p.offsetWidth - (document.documentElement.clientWidth - 16);
+  p.style.left = over > 0 ? `${-8 - over}px` : "";
+})));
 $("#subnav").addEventListener("click", (e) => { const b = e.target.closest("button[data-tab]"); if (b) go(b.dataset.tab); });
+
+// Phone menu: the burger opens the sheet under the header. Picking a page, clicking outside it or Esc closes it.
+const menuOpen = () => $(".topbar").classList.contains("menu-open");
+function setMenu(open) {
+  if (!open && $("#menu-sheet").contains(document.activeElement)) $("#menu-open").focus(); // focus never stays in the hidden sheet
+  $(".topbar").classList.toggle("menu-open", open);
+  $("#menu-open").setAttribute("aria-expanded", open);
+}
+document.addEventListener("click", (e) => {
+  if (e.target.closest("#menu-open")) return setMenu(!menuOpen());
+  if (menuOpen() && (e.target.closest("#menu-sheet button") || !e.target.closest(".topbar"))) setMenu(false);
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && menuOpen()) setMenu(false); });
+// The links fold into the burger menu below 980px, or sooner when they don't fit (large text sizes)
+function fitHeader() {
+  const bar = $(".topbar"), inner = $(".topbar-inner");
+  bar.classList.remove("tight");
+  bar.classList.toggle("tight", innerWidth <= 980 || inner.scrollWidth > inner.clientWidth);
+}
+window.addEventListener("resize", fitHeader);
+document.fonts?.ready.then(fitHeader);
+// The header gets its bottom border once the page scrolls under it
+const markScrolled = () => $(".topbar").classList.toggle("scrolled", window.scrollY > 4);
+window.addEventListener("scroll", markScrolled, { passive: true });
 
 document.addEventListener("click", (e) => {
   const t = e.target;
@@ -233,7 +293,8 @@ document.addEventListener("click", (e) => {
   if (t.dataset.fs) { S.fontSize = t.dataset.fs; save(); applyTheme(); return render(); }
   if (t.dataset.dens) { S.density = t.dataset.dens; save(); applyTheme(); return render(); }
   if (t.dataset.shortcuts) { S.keys = t.dataset.shortcuts === "on"; save(); applyTheme(); return rerender(); }
-  if (t.closest("#theme-quick")) { S.theme = LIGHT_THEMES.has(resolvedTheme()) ? "dark" : "light"; save(); applyTheme(); return render(); }
+  if (t.closest("#theme-quick")) { S.theme = LIGHT_THEMES.has(resolvedTheme()) ? DEFAULT_THEME : "light"; save(); applyTheme(); return render(); }
+  if (t.closest("#settings-open")) return go("settings");
   if (t.closest("#brand")) return go("home");
   const vc = t.closest(".vcard");
   if (vc) {
@@ -272,3 +333,4 @@ document.addEventListener("change", (e) => {
 applyTheme();
 if (location.hash.length > 2) applyPath(location.hash);
 render();
+markScrolled();
