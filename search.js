@@ -71,8 +71,10 @@ function commandEntries() {
   const next = pathNext(TRACKS.ai);
   if (next) add(`Continue: ${next.title}`, "Your next lesson", "next lesson continue resume", () => { trState("ai").sel = next.id; go("ai:learn"); });
   add("Home", "Page", "start today", () => go("home"));
-  add("AI / LLM: Learn", "Page", "lessons track", () => go("ai:learn"));
-  add("AI / LLM: Roadmap", "Page", "weeks plan schedule", () => go("ai:roadmap"));
+  add("Learn: Overview", "Page", "ai llm course track progress", () => go("ai:overview"));
+  add("Learn: Lessons", "Page", "ai llm lessons track", () => go("ai:learn"));
+  add("Learn: Roadmap", "Page", "ai llm weeks plan schedule", () => go("ai:roadmap"));
+  add("Claude & Anthropic", "Page", "anthropic official courses certifications openai academy", () => go("claude"));
   add("Interview: Mock interview", "Page", "practice timed mock", () => go("interview:mock"));
   add("Roles", "Page", "postings skills readiness jobs", () => go(S.lastTab?.roles || defaultTab("roles")));
   add("Companies", "Page", "tracker applications employers", () => go("companies"));

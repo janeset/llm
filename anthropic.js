@@ -105,7 +105,7 @@ function claudeView() {
     ${claudeCoursesCard()}${claudeCertsSummary()}${openAICard()}`;
 }
 
-// The same content inside AI / LLM > Learn (sidebar: Claude & Anthropic).
+// The same content inside Learn > Lessons (reference/claude-and-anthropic in the folder tree).
 function claudeLearnPage() {
   return `<div class="label">Claude &amp; Anthropic</div><h2>Official courses &amp; certifications</h2>
     <p class="muted">Anthropic's courses pair well with the lessons here: each course lists the lessons it builds on.</p>

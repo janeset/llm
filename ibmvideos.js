@@ -57,7 +57,7 @@ const IBM_PLAYLIST_GROUPS = [
   ] },
 ];
 
-AI.tabs = [["overview", "Overview"], ["roadmap", "Roadmap"], ["learn", "Learn"], ["ibm", "IBM Videos"], ["questions", "Questions"], ["quiz", "Quiz"], ["labs", AI.labsName], ["certs", "Certs"]];
+AI.tabs = [["overview", "Overview"], ["roadmap", "Roadmap"], ["learn", "Lessons"], ["ibm", "IBM Videos"], ["questions", "Questions"], ["quiz", "Quiz"], ["labs", AI.labsName], ["certs", "Certifications"]];
 
 const ibmDone = () => { const st = trState("ai"); return (st.ibm = st.ibm || {}); };
 const ibmLessonVideos = (T, tid) => (T.videos[tid] || []).filter((v) => v.ch === "IBM Technology");

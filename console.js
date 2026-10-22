@@ -1,5 +1,5 @@
 "use strict";
-// Console (the ` key) and single-key shortcuts ([H] Home, [A] AI / LLM, ...): a small pop-up terminal for
+// Console (the ` key) and single-key shortcuts (H Home, L Learn, ...): a small pop-up terminal for
 // getting around and checking progress, in the style of Stripe's developer site. Loaded after search.js and
 // before app.js; it only uses app.js and track globals at call time.
 
@@ -140,7 +140,7 @@ function conRun(raw) {
     case "week": {
       const wk = trackWeek("ai"), w = T.weeks[(wk || 1) - 1];
       const head = wk ? `Week ${wk} of ${T.weeks.length}: ${esc(w.title)}` : `Not started. Week 1 of ${T.weeks.length}: ${esc(w.title)}`;
-      return conPrint(`<b>${head}</b>\n${esc(w.goal)}${wk ? "" : `\n<span class="dim">Start the plan on ${conLink("open ai", "AI / LLM > Overview")} to track your week.</span>`}`);
+      return conPrint(`<b>${head}</b>\n${esc(w.goal)}${wk ? "" : `\n<span class="dim">Start the plan on ${conLink("open ai", "Learn > Overview")} to track your week.</span>`}`);
     }
     case "progress": case "status": {
       const p = trackProgress("ai"), quiz = p.answered ? `${Math.round(100 * p.correct / p.answered)}% (${p.correct}/${p.answered})` : "not started";
@@ -162,14 +162,15 @@ function conRun(raw) {
   }
 }
 
-// Single-key shortcuts: each top bar button's data-key letter, ` for the console. Off in Settings turns them all off.
+// Single-key shortcuts: each top bar button's data-key letters (a space-separated list: Learn keeps A, its old
+// letter, beside L), ` for the console. Off in Settings turns them all off.
 document.addEventListener("keydown", (e) => {
   if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
   if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable || document.querySelector("dialog[open]")) return;
   if (e.key === "Escape") return closeConsole();
   if (S.keys === false) return;
   if (e.key === "`") { e.preventDefault(); return toggleConsole(); }
-  const b = e.key.length === 1 && document.querySelector(`.topbar button[data-key="${e.key.toLowerCase()}"]`);
+  const b = e.key.length === 1 && /\w/.test(e.key) && document.querySelector(`.topbar button[data-key~="${e.key.toLowerCase()}"]`);
   if (b) { e.preventDefault(); b.click(); }
 });
 // The Console pill in the top bar, and its copy in the phone menu

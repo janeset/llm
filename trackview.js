@@ -5,7 +5,7 @@
 
 TRACKS.ai = AI;
 
-const TRACK_TABS = (id) => TRACKS[id].tabs || [["overview", "Overview"], ["roadmap", "Roadmap"], ["learn", "Learn"], ["questions", "Questions"], ["quiz", "Quiz"], ["labs", TRACKS[id].labsName], ["certs", "Certs"]];
+const TRACK_TABS = (id) => TRACKS[id].tabs || [["overview", "Overview"], ["roadmap", "Roadmap"], ["learn", "Lessons"], ["questions", "Questions"], ["quiz", "Quiz"], ["labs", TRACKS[id].labsName], ["certs", "Certifications"]];
 const CERT_STATUSES = ["Not planned", "Planning", "Studying", "Booked", "Passed"];
 const TRACK_ICON = {
   ai: `<svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>`,
@@ -163,7 +163,12 @@ function ring(pct, label, size = 120) {
 // ---------------- navigation ----------------
 function renderNav() {
   const sec = sectionOf(tab);
-  document.querySelectorAll("#nav > button, #nav > .dd > button").forEach((b) => b.classList.toggle("active", (b.dataset.nav && b.dataset.nav === tab) || (!!b.dataset.track && b.dataset.track === sec) || ("jobs" in b.dataset && isJobs(tab))));
+  // The current section is marked for screen readers too: "page" on the page itself, "true" for a section you're inside
+  document.querySelectorAll("#nav > button, #nav > .dd > button").forEach((b) => {
+    const on = (b.dataset.nav && b.dataset.nav === tab) || (!!b.dataset.track && b.dataset.track === sec) || ("jobs" in b.dataset && isJobs(tab));
+    b.classList.toggle("active", on);
+    if (on) b.setAttribute("aria-current", b.dataset.nav ? "page" : "true"); else b.removeAttribute("aria-current");
+  });
   $("#settings-open").classList.toggle("on", tab === "settings");
   renderMenus();
   const sub = $("#subnav");
@@ -175,53 +180,113 @@ function renderNav() {
   sub.innerHTML = `<div class="subnav-inner"><span class="subnav-title t-${sec}">${TRACK_ICON[sec]}${sec === "interview" ? "Interview" : esc(TRACKS[sec].name)}</span>
     <div class="subnav-tabs">${items.map(([k, l]) => `<button data-tab="${k}" class="${k === tab ? "active" : ""}">${esc(l)}</button>`).join("")}</div></div>`;
 }
-// The header's menus: the AI / LLM and Jobs dropdowns, the same links stacked in the phone menu sheet, and the
-// Continue pill. Rebuilt on every render, since they show progress and the current page.
+// The header's menus: the Learn and Jobs dropdowns, the phone menu sheet (the same links, one section open at a
+// time, then the tools), and the primary action pill. Rebuilt on every render, since they show progress and the
+// current page.
+const MENU_INTRO = {
+  ai: () => `The AI / LLM course: ${TRACKS.ai.weeks.length} weeks of lessons with exercises in your browser, a build every week, and interview practice.`,
+  jobs: () => "Interview practice, the skills AI engineering roles ask for, and your applications.",
+};
+let sheetOpen = null; // the phone menu's open section ("ai", "jobs" or "" for none); null follows the current page
+const ICON_CHEV = `<svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg>`;
 function renderMenus() {
   const T = TRACKS.ai, next = pathNext(T), wk = trackWeek("ai"), iv = ivState(), started = anyPassed(), sec = sectionOf(tab);
-  const sel = tab === "ai:learn" && (trState("ai").sel || defaultLesson(T));
+  const sel = tab === "ai:learn" && (trState("ai").sel || defaultLesson(T)), aiTabs = Object.fromEntries(TRACK_TABS("ai"));
   const item = (attrs, label, meta = "", on = false) => `<button class="mn-i ${on ? "on" : ""}" ${attrs}${on ? ' aria-current="page"' : ""}><span>${esc(label)}</span>${meta ? `<small>${esc(meta)}</small>` : ""}</button>`;
-  const col = (h, items) => `<div class="mn-col"><div class="mn-h">${esc(h)}</div>${items.join("")}</div>`;
+  const head = (h) => `<div class="mn-h">${esc(h)}</div>`;
+  const col = (...parts) => `<div class="mn-col">${parts.join("")}</div>`;
+  const aiPage = (k) => item(`data-nav-go="ai:${k}"`, aiTabs[k], "", tab === "ai:" + k);
   const ai = [
-    col("Pages", TRACK_TABS("ai").map(([k, l]) => item(`data-nav-go="ai:${k}"`, l, "", tab === "ai:" + k))),
+    // The course pages, grouped by what you do there
+    col(head("Course"), ...["overview", "roadmap", "learn", "labs"].map(aiPage), head("Practice & reference"), ...["questions", "quiz", "ibm", "certs"].map(aiPage)),
     // Each module opens on its first unfinished lesson
-    col("Modules", T.groups.map(([g, tids]) => {
+    col(head("Modules"), ...T.groups.map(([g, tids]) => {
       const ts = tids.map((tid) => topicById(T, tid)), done = ts.filter((t) => topicDone(T, t)).length;
       return item(goLearn("ai", (ts.find((t) => !topicDone(T, t)) || ts[0]).id), g, `${done}/${ts.length}`, tids.includes(sel));
     })),
-    col("Up next", [`<div class="mn-next">${next
+    col(head("Up next"), `<div class="mn-next">${next
       ? `<span class="muted">${wk ? `Week ${wk} of ${T.weeks.length}` : "Plan not started yet"}</span><b>${esc(next.title)}</b><button class="btn primary small" ${goLearn("ai", next.id)}>${started ? "Continue" : "Start here"} &rarr;</button>`
-      : `<b>Every lesson is done.</b><button class="btn primary small" data-trgo="ai|quiz|">Take a quiz &rarr;</button>`}</div>`]),
+      : `<b>Every lesson is done.</b><button class="btn primary small" data-trgo="ai|quiz|">Take a quiz &rarr;</button>`}</div>`),
   ].join("");
   const ivMeta = { stories: iv.stories.length, history: iv.ivMocks.length };
   const jobs = [
-    col("Interview", IV_TABS.map(([k, l]) => item(`data-nav-go="interview:${k}"`, l, ivMeta[k] || "", tab === "interview:" + k))),
-    col("Roles", TRACK_TABS("roles").map(([k, l]) => item(`data-nav-go="roles:${k}"`, l, "", tab === "roles:" + k))),
-    col("Companies", [item(`data-nav-go="companies"`, "Tiers & tracker", `${S.companies.length} applied`, tab === "companies")]),
+    col(head("Interview"), ...IV_TABS.map(([k, l]) => item(`data-nav-go="interview:${k}"`, l, ivMeta[k] || "", tab === "interview:" + k))),
+    col(head("Roles"), ...TRACK_TABS("roles").map(([k, l]) => item(`data-nav-go="roles:${k}"`, l, "", tab === "roles:" + k))),
+    col(head("Companies"), item(`data-nav-go="companies"`, "Tiers & tracker", `${S.companies.length} applied`, tab === "companies")),
   ].join("");
   // Key hints; the single-key ones (.k) hide when shortcuts are off in Settings
   const foot = (k) => `<div class="mn-foot"><span class="k"><kbd>${k}</kbd> opens the folder tree</span><span><kbd>Ctrl</kbd> <kbd>K</kbd> search</span><span class="k"><kbd>\`</kbd> console</span></div>`;
-  $('.dd-panel[data-menu="ai"]').innerHTML = `<div class="mn-cols">${ai}</div>${foot("A")}`;
-  $('.dd-panel[data-menu="jobs"]').innerHTML = `<div class="mn-cols">${jobs}</div>${foot("J")}`;
-  const top = (attrs, label, on, cols = "") => `<div class="mn-sec"><button class="mn-i mn-top ${on ? "on" : ""}" ${attrs}>${label}</button>${cols && `<div class="mn-cols">${cols}</div>`}</div>`;
-  $("#menu-sheet").innerHTML = top(`data-nav-go="home"`, "Home", tab === "home") + top(`data-track-go="ai"`, "AI / LLM", sec === "ai", ai)
-    + top(`data-nav-go="claude"`, "Claude &amp; Anthropic", tab === "claude") + top(`data-nav-go="${S.lastJobs || "interview:mock"}"`, "Jobs", isJobs(tab), jobs)
-    + top(`data-nav-go="settings"`, "Settings", tab === "settings") + `<div class="mn-sec"><button class="pill-btn" data-console-open>Console</button></div>`;
-  // The solid pill: the next lesson, or a quiz once every lesson is done
-  const cta = $("#top-cta");
-  cta.textContent = !next ? "Take a quiz" : started ? "Continue" : "Start here";
+  const intro = (k) => `<p class="mn-intro">${esc(MENU_INTRO[k]())}</p>`;
+  $('.dd-panel[data-menu="ai"]').innerHTML = `${intro("ai")}<div class="mn-cols">${ai}</div>${foot("L")}`;
+  $('.dd-panel[data-menu="jobs"]').innerHTML = `${intro("jobs")}<div class="mn-cols">${jobs}</div>${foot("J")}`;
+  // Phone menu: plain links for single pages; Learn and Jobs expand in place, the current one open to start with
+  const open = sheetOpen ?? (sec === "ai" ? "ai" : isJobs(tab) ? "jobs" : "");
+  const link = (attrs, label, on) => `<div class="mn-sec"><button class="mn-i mn-top ${on ? "on" : ""}" ${attrs}${on ? ' aria-current="page"' : ""}>${label}</button></div>`;
+  const group = (k, label, on, cols) => `<div class="mn-sec"><button class="mn-i mn-top ${on ? "on" : ""}" data-sheet="${k}" aria-expanded="${open === k}" aria-controls="sheet-${k}"><span>${label}</span>${ICON_CHEV}</button>
+    <div class="mn-sub" id="sheet-${k}" ${open === k ? "" : "hidden"}>${intro(k)}<div class="mn-cols">${cols}</div></div></div>`;
+  $("#menu-sheet").innerHTML = link(`data-nav-go="home"`, "Home", tab === "home") + group("ai", "Learn", sec === "ai", ai)
+    + link(`data-nav-go="claude"`, "Claude &amp; Anthropic", tab === "claude") + group("jobs", "Jobs", isJobs(tab), jobs)
+    + `<div class="mn-tools">${head("Tools")}<div class="row"><button class="pill-btn" data-open-search>${ICON_SEARCH}Search</button><button class="pill-btn" data-console-open><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 17 5-5-5-5M12 18h7"/></svg>Console</button>
+      <button class="pill-btn ${tab === "settings" ? "on" : ""}" data-nav-go="settings"${tab === "settings" ? ' aria-current="page"' : ""}>Settings</button></div></div>`;
+  // The solid pill: the next lesson, or a quiz once every lesson is done. Its accessible name says where it goes.
+  const cta = $("#top-cta"), label = !next ? "Take a quiz" : started ? "Continue" : "Start here";
+  cta.textContent = label;
   cta.dataset.trgo = next ? `ai|learn|${next.id}` : "ai|quiz|";
-  cta.title = next ? `Next lesson: ${next.title}` : "Every lesson is done";
+  cta.title = next ? `${started ? "Your next lesson" : "The first lesson"}: ${next.title}` : "Every lesson is done";
+  cta.setAttribute("aria-label", next ? `${label}: ${next.title}` : label);
 }
 // The page a top-level section opens on the first time.
 const defaultTab = (k) => (k === "interview" ? "interview:mock" : k + ":overview");
 function go(t) {
+  const was = document.activeElement, treeKey = was?.closest?.(".tree") && focusKey(was);
   tab = t;
   const s = sectionOf(t);
   if (s) { S.lastTab = S.lastTab || {}; S.lastTab[s] = t; save(); }
   render();
   window.scrollTo(0, 0);
+  // Keyboard focus: a folder tree row keeps it, so you can keep browsing the tree; a control that the render
+  // replaced hands it to the new page's heading instead of dropping it at the top of the document.
+  const row = treeKey && document.querySelector(treeKey);
+  if (row) row.focus({ preventScroll: true });
+  else if (!document.activeElement || document.activeElement === document.body) focusPage();
 }
+// Moves focus to the page's main heading (or the page itself), without scrolling. Also the skip link's target.
+function focusPage() {
+  const h = $("#view .tree-main h1, #view .tree-main h2") || $("#view h1, #view h2") || $("#view");
+  if (h !== $("#view")) h.tabIndex = -1;
+  h.focus({ preventScroll: true });
+}
+
+// Where the current page sits, as [label, attributes that open it] from the section down; a step without a page
+// of its own has no attributes. Shown above Learn and Jobs pages, and used for the window title.
+function crumbTrail() {
+  const sec = sectionOf(tab), sub = tab.split(":")[1] || "overview";
+  if (tab === "companies") return [["Jobs", null], ["Companies", null]];
+  if (sec === "interview") return [["Jobs", null], ["Interview", null], [(IV_TABS.find(([k]) => k === sub) || IV_TABS[0])[1], null]];
+  if (sec !== "ai" && sec !== "roles") return [];
+  const T = TRACKS[sec], st = trState(sec), tabs = Object.fromEntries(TRACK_TABS(sec));
+  const trail = sec === "ai" ? [["Learn", sub === "overview" ? null : `data-nav-go="ai:overview"`]] : [["Jobs", null], ["Roles", sub === "overview" ? null : `data-nav-go="roles:overview"`]];
+  if (sub === "learn") {
+    const sel = st.sel || defaultLesson(T), t = topicById(T, sel), ref = { glossary: "Glossary", courses: "Full courses", claude: "Claude & Anthropic" }[sel];
+    const g = (T.groups.find(([, ids]) => ids.includes(sel)) || [])[0];
+    return [...trail, [tabs.learn, null], ...(ref ? [["Reference", null], [ref, null]] : t ? [[g, null], [t.title, null]] : [["Lesson not found", null]])];
+  }
+  if (sub === "ibm") {
+    const at = st.ibmSel && st.ibmSel !== "overview" ? st.ibmSel : "";
+    const pl = at.startsWith("pl:") && IBM_PLAYLIST_GROUPS.flatMap((g) => g.lists).find((p) => p.id === at.slice(3));
+    const ls = at.startsWith("ls:") && topicById(TRACKS[at.split(":")[1]], at.split(":")[2]);
+    const name = pl ? pl.title : ls ? ls.title : at === "search" ? "Search" : "";
+    return [...trail, [tabs.ibm, name ? `data-tribm="overview"` : null], ...(name ? [[name, null]] : [])];
+  }
+  const lab = sub === "labs" && views._trlab && T.labs.find((l) => l.id === views._trlab);
+  if (lab) return [...trail, [tabs.labs, `data-trgo="${sec}|labs|"`], [lab.title, null]];
+  return sec === "ai" && sub === "overview" ? [...trail.map(([l]) => [l, null]), ["Overview", null]] : [...trail, [tabs[sub] || sub, null]];
+}
+const crumbsHtml = () => {
+  const trail = crumbTrail();
+  return trail.length < 2 ? "" : `<nav class="crumbs" aria-label="Breadcrumb"><ol>${trail.map(([l, a], i) => `<li>${i === trail.length - 1 ? `<span aria-current="page">${esc(l)}</span>`
+    : a ? `<button class="crumb-link" ${a}>${esc(l)}</button>` : `<span>${esc(l)}</span>`}</li>`).join("")}</ol></nav>`;
+};
 
 // ---------------- home ----------------
 const levelPick = () => `<div class="card level-pick"><h3 style="margin-top:0">Where are you starting from?</h3>
@@ -246,49 +311,57 @@ function zeroHomeCard() {
     ${ZERO_PY_NOTE_HTML()}${part("ai")}</div>`;
 }
 
+// The four parts of the site, as Home's entry points. Each says what kind of thing it is in words (the chip), not
+// only by its icon.
+const HOME_ICONS = {
+  learn: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2zM22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg>`,
+  claude: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="6"/><path d="m8.5 14-1.5 8 5-3 5 3-1.5-8"/></svg>`,
+  jobs: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/></svg>`,
+  tools: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 10 3 2-3 2M12 15h5"/></svg>`,
+};
+function homeEntries() {
+  const T = TRACKS.ai, ls = T.groups.flatMap(([, ids]) => ids).map((tid) => topicById(T, tid));
+  const exs = ls.reduce((n, t) => n + (t.exercises || []).length, 0), pls = IBM_PLAYLIST_GROUPS.reduce((n, g) => n + g.lists.length, 0);
+  const card = (icon, kind, title, desc, meta, attrs, go) => `<button class="entry" ${attrs}>
+      <span class="entry-top"><span class="entry-icon">${HOME_ICONS[icon]}</span><span class="chip">${kind}</span></span>
+      <span class="entry-t">${title}</span><span class="entry-d">${desc}</span><span class="entry-m">${meta}</span><span class="entry-go">${go} &rarr;</span></button>`;
+  return `<section class="home-sec" aria-labelledby="h-explore"><div class="sec-head"><h2 id="h-explore">What's here</h2><p class="muted">Four parts, each one click away in the top bar.</p></div>
+    <div class="entry-grid">
+      ${card("learn", "Course", "Learn", "The AI / LLM course: lessons with Python exercises checked in your browser, a build every week, IBM videos, a question bank and quizzes.", `${ls.length} lessons · ${exs} exercises · ${T.labs.length} projects`, `data-nav-go="ai:overview"`, "Open the course")}
+      ${card("claude", "Official resources", "Claude &amp; Anthropic", "Anthropic's free courses in the order to take them, the Claude certifications, and OpenAI Academy. Every link goes to the official page.", `${CLAUDE.courses.length} courses · ${CLAUDE_CERTS.length} certifications`, `data-nav-go="claude"`, "See the courses")}
+      ${card("jobs", "Career", "Jobs", "Timed mock interviews, a STAR story bank, the skills AI engineering postings ask for, and a tracker for your applications.", "Mock interviews · story bank · application tracker", `data-nav-go="${S.lastJobs || "interview:mock"}"`, "Practice for interviews")}
+      ${card("tools", "Tools", "Console &amp; search", "Jump to any lesson, check your progress or switch themes from the keyboard. Search covers lessons, questions, projects and all " + pls + " IBM playlists.", `<kbd>\`</kbd> console · <kbd>Ctrl</kbd> <kbd>K</kbd> search`, `data-console-open`, "Open the console")}
+    </div></section>`;
+}
+
 function homeView() {
-  const hr = new Date().getHours(), hello = hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
-  const dateStr = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
   const st = streak(), todayCount = S.activity[today()] || 0;
-  const T = TRACKS.ai, s = trState("ai"), wk = trackWeek("ai"), next = pathNext(T);
-  // Before the first passed exercise, Home shows one action (Start here) and no zero-valued stats.
+  const T = TRACKS.ai, s = trState("ai"), wk = trackWeek("ai"), next = pathNext(T), p = trackProgress("ai");
+  // Before the first passed exercise, Home shows one action (Start here) and the course in numbers, no zero-valued stats.
   const started = anyPassed();
-  const main = !next ? `<button class="btn primary" data-trgo="ai|quiz|">Every lesson done. Take a quiz &rarr;</button>`
-    : started ? `<button class="btn primary" ${goLearn("ai", next.id)}>Continue: ${esc(next.title)} &rarr;</button>`
+  const main = !next ? `<button class="btn primary btn-lg" data-trgo="ai|quiz|">Every lesson done. Take a quiz &rarr;</button>`
+    : started ? `<button class="btn primary btn-lg" ${goLearn("ai", next.id)}>Continue: ${esc(next.title)} &rarr;</button>`
     : `<button class="btn primary btn-lg" ${goLearn("ai", next.id)}>Start here &rarr;</button><span class="muted">First lesson: ${esc(next.title)}</span>`;
-
-  const trackCard = (id) => {
-    const T = TRACKS[id], s = trState(id), p = trackProgress(id), wk = trackWeek(id);
-    const w = wk ? T.weeks[wk - 1] : T.weeks[0], nextTopic = pathNext(T);
-    return `<div class="card track-card t-${id}">
-      <div class="tc-head"><span class="tc-icon">${TRACK_ICON[id]}</span><div><h3>${esc(T.name)}</h3><p class="muted">${esc(T.tagline)}</p></div></div>
-      <div class="tc-body">${ring(p.pct, `${p.done + p.labs}/${p.lessons + T.labs.length} done`, 104)}
-        <div class="tc-meta"><div class="label">${wk ? `Week ${wk} of ${T.weeks.length}` : "Not started"}</div><div>${esc(w.title)}</div>
-          ${nextTopic ? `<div class="muted">Next: ${esc(nextTopic.title)}</div>` : ""}
-          ${p.answered ? `<span class="badge plain">Quiz ${Math.round(100 * p.correct / p.answered)}%</span>` : ""}</div></div>
-      <div class="row">${s.start ? `<button class="btn primary" data-track-go="${id}">Continue &rarr;</button>` : `<button class="btn primary" data-trstart="${id}">Start the ${T.weeks.length}-week plan</button><button class="btn ghost" data-track-go="${id}">Explore</button>`}</div></div>`;
-  };
-
-  // A preview of the command palette with the learner's next lessons; clicking it opens the real one.
-  const path = learnPath(T), at = Math.max(0, path.indexOf(next)), upNext = path.slice(at, at + 3);
-  const palPreview = `<button class="hero-pal" data-open-search aria-label="Open search (Ctrl+K)">
-      <span class="hp-q">${ICON_SEARCH}<i></i><span class="muted">Jump to a lesson, page or question</span><span class="keys"><kbd>Ctrl</kbd><kbd>K</kbd></span></span>
-      ${upNext.map((t, i) => `<span class="hp-row ${i ? "" : "on"}"><b>${i || !next ? "" : "Continue: "}${esc(t.title)}</b><span class="chip">${i || !next ? "Lesson" : "Go"}</span></span>`).join("")}
-      <span class="hp-foot"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> move</span><span><kbd>&crarr;</kbd> open</span><span><kbd>\`</kbd> console</span></span>
-    </button>`;
-  return `<section class="card hero home-hero">
-      <div style="position:relative;z-index:1">
-        <div class="eyebrow">${esc(dateStr)}</div>
-        <h1>${esc(hello).replace(/(\w+)$/, '<span class="lol">$1</span>')}.</h1>
-        <p>AI engineering prep for LLM roles: short lessons with small Python exercises checked right in your browser, then hands-on projects. You need basic Python; no API key needed to start.</p>
-        <div class="row" style="margin-top:18px">${main}</div>
+  const all = T.groups.flatMap(([, ids]) => ids).map((tid) => topicById(T, tid));
+  const facts = started
+    ? [["Lessons done", `${p.done}<small> / ${p.lessons}</small>`], ["Exercises passed", `${p.exDone}<small> / ${p.exTotal}</small>`], [T.labsName + " done", `${p.labs}<small> / ${T.labs.length}</small>`], ["Day streak", st], ["Done today", todayCount], ["Week", wk ? `${wk}<small> / ${T.weeks.length}</small>` : "-"]]
+    : [["Weeks", T.weeks.length], ["Lessons", all.length], ["Exercises", all.reduce((n, t) => n + (t.exercises || []).length, 0)], [T.labsName, T.labs.length], ["Interview questions", T.questions.length], ["Quiz questions", T.quiz.length]];
+  return `<section class="home-hero">
+      <div class="hh-copy">
+        <div class="eyebrow">${started ? `Welcome back${wk ? ` · Week ${wk} of ${T.weeks.length}` : ""}` : "For developers moving into AI engineering"}</div>
+        <h1>Learn to build with LLMs, then get hired for it.</h1>
+        <p class="lead">A ${T.weeks.length}-week course with short lessons, Python exercises checked right in your browser and a build every week, plus Anthropic's official courses and interview practice. You need basic Python; no API key needed to start.</p>
+        <div class="row hh-cta">${main}</div>
+        <p class="hh-more"><button class="link-btn inline-link" data-trgo="ai|roadmap|">See the ${T.weeks.length}-week roadmap</button></p>
       </div>
-      ${palPreview}
+      <div class="hh-facts" role="group" aria-labelledby="h-facts"><div class="label" id="h-facts">${started ? "Your progress" : "The course in numbers"}</div>
+        <dl>${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join("")}</dl></div>
     </section>
     ${S.level ? "" : levelPick()}
-    ${started ? `<div class="row home-stats"><span class="badge plain">&#128293; ${st} day streak</span><span class="badge plain">${todayCount} thing${todayCount === 1 ? "" : "s"} done today</span></div>` : ""}
-    ${zeroHomeCard()}
     ${started ? `<div class="track-grid">${trackCard("ai")}${rolesHomeCard()}</div>` : ""}
+    ${homeEntries()}
+    ${zeroHomeCard()}
+    <section class="home-sec" aria-labelledby="h-how"><div class="sec-head"><h2 id="h-how">How the course works</h2><p class="muted">About 8 hours a week. Employers want evidence: a deployed RAG or agent project with an eval harness beats any certificate.</p></div>
     <div class="cols-2">
       <div class="card"><h3>A sustainable weekly rhythm</h3>
         <table><tr><th>Day</th><th>Focus</th></tr>
@@ -296,13 +369,24 @@ function homeView() {
           <tr><td>Tue / Thu</td><td>The week's build: build, evaluate, write it up (90 min)</td></tr>
           <tr><td>Fri</td><td>Interview questions out loud, or a mock interview (45 min)</td></tr>
           <tr><td>Sat</td><td>The week's third lesson, or its videos and a practice quiz (60 min)</td></tr>
-          <tr><td>Sun</td><td>Finish the build's README, light review, plan the week (60-90 min)</td></tr></table>
-        <p class="muted">Employers want evidence: a deployed RAG or agent project with an eval harness beats any certificate.</p></div>
+          <tr><td>Sun</td><td>Finish the build's README, light review, plan the week (60-90 min)</td></tr></table></div>
       <div class="card"><div class="section-head"><h3>Your ${T.weeks.length} weeks</h3><button class="btn small ghost" data-trgo="ai|roadmap|">Roadmap &rarr;</button></div><div class="list">
         ${beginnerLevel() ? `<div class="li"><div><span class="t">Before week 1</span><div class="muted">AI from zero, at your own pace</div></div></div>` : ""}
         ${T.weeks.map((w) => `<div class="li"><div><span class="t">Week ${w.n}</span><div class="muted">${esc(w.title)}</div></div>${w.n === wk ? '<span class="badge accent">This week</span>' : ""}</div>`).join("")}
-      </div>${s.start ? "" : `<p class="muted">Start the plan from the track card to track your current week.</p>`}</div>
-    </div>`;
+      </div>${s.start ? "" : `<p class="muted">Start the plan from the course overview to track your current week.</p>`}</div>
+    </div></section>`;
+}
+// A course's card on Home once you've started: progress ring, this week and the next lesson.
+function trackCard(id) {
+  const T = TRACKS[id], s = trState(id), p = trackProgress(id), wk = trackWeek(id);
+  const w = wk ? T.weeks[wk - 1] : T.weeks[0], nextTopic = pathNext(T);
+  return `<div class="card track-card t-${id}">
+      <div class="tc-head"><span class="tc-icon">${TRACK_ICON[id]}</span><div><h3>${esc(T.name)}</h3><p class="muted">${esc(T.tagline)}</p></div></div>
+      <div class="tc-body">${ring(p.pct, `${p.done + p.labs}/${p.lessons + T.labs.length} done`, 104)}
+        <div class="tc-meta"><div class="label">${wk ? `Week ${wk} of ${T.weeks.length}` : "Not started"}</div><div>${esc(w.title)}</div>
+          ${nextTopic ? `<div class="muted">Next: ${esc(nextTopic.title)}</div>` : ""}
+          ${p.answered ? `<span class="badge plain">Quiz ${Math.round(100 * p.correct / p.answered)}%</span>` : ""}</div></div>
+      <div class="row">${s.start ? `<button class="btn primary" data-track-go="${id}">Continue &rarr;</button>` : `<button class="btn primary" data-trstart="${id}">Start the ${T.weeks.length}-week plan</button><button class="btn ghost" data-track-go="${id}">Explore</button>`}</div></div>`;
 }
 
 // ---------------- track pages ----------------
@@ -320,7 +404,7 @@ function trackView(id, sub) {
       default: return trOverview(T, st);
     }
   })();
-  return treeMode(id) ? `<div class="tree-layout">${treeView(T, st, sub)}<section class="tree-main">${page}</section></div>` : page;
+  return treeMode(id) ? `<div class="tree-layout">${treeView(T, st, sub)}<section class="tree-main">${crumbsHtml()}${page}</section></div>` : page;
 }
 
 // ---------------- folder tree ----------------
@@ -480,7 +564,7 @@ function trOverview(T, st) {
         <h1>${esc(T.name)}</h1>
         <p>${esc(T.tagline)}. ${wk ? `This week: <b style="color:var(--text)">${esc(w.title)}</b>.` : `${T.weeks.length} weeks, a build every week, about 8 hours a week.`}</p>
         <div class="row" style="margin-top:14px">
-          ${nextTopic ? `<button class="btn primary" ${goLearn(id, nextTopic.id)}>${p.done ? "Continue" : "Start here"}: ${esc(nextTopic.title)} &rarr;</button>` : `<button class="btn primary" data-trgo="${id}|quiz|">Take a quiz &rarr;</button>`}
+          ${nextTopic ? `<button class="btn primary" ${goLearn(id, nextTopic.id)}>${anyPassed() ? "Continue" : "Start here"}: ${esc(nextTopic.title)} &rarr;</button>` : `<button class="btn primary" data-trgo="${id}|quiz|">Take a quiz &rarr;</button>`}
           ${st.start ? "" : `<button class="btn" data-trstart="${id}">Start the ${T.weeks.length}-week plan</button>`}
           <button class="btn" data-trgo="${id}|roadmap|">View roadmap</button>
         </div>
@@ -633,7 +717,8 @@ function trTopic(T, st, tid) {
     <p class="muted code-note">For reference: this runs on your own computer with the tools installed${/anthropic|client\./.test(c.code) ? " and an API key (a paid account)" : ""}. You don't need to run it to complete this lesson.</p><pre>${esc(c.code)}</pre></div>`).join("");
   const vlist = (T.videos[tid] || []).concat(t.videos || []);
   const hasQ = T.questions.some((q) => q.topic === tid), hasQuiz = T.quiz.some((q) => q.topic === tid);
-  return `<div class="label lesson-crumb">${esc(group)}</div><h2>${esc(t.title)}</h2>${t.zero ? zeroPos(T, t) : ""}
+  // The module name is in the breadcrumb above the page in the folder tree layout
+  return `${treeMode(id) ? "" : `<div class="label lesson-crumb">${esc(group)}</div>`}<h2>${esc(t.title)}</h2>${t.zero ? zeroPos(T, t) : ""}
     ${status ? `<p class="muted">${status}</p>` : ""}
     <div class="card lesson-body">${t.why ? `<p class="callout why"><b>Why it matters on the job:</b> ${t.why}</p>` : ""}${t.body}${example}</div>${codes}
     ${exs.length ? `<div class="label" style="margin:6px 0 8px">Exercises (run in your browser)</div>${exs.map((ex, j) => exerciseCard(id, tid, ex, j, st)).join("")}` : ""}

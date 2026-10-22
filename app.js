@@ -63,7 +63,7 @@ function applyTheme() {
   if (S.treeW) r.style.setProperty("--tree-w", S.treeW + "px"); else r.style.removeProperty("--tree-w");
   if (document.querySelector(".topbar-inner")) fitHeader(); // text size changes the header's width
   const q = document.getElementById("theme-quick");
-  if (q) q.innerHTML = LIGHT_THEMES.has(t) ? ICON_MOON : ICON_SUN;
+  if (q) { q.innerHTML = LIGHT_THEMES.has(t) ? ICON_MOON : ICON_SUN; q.setAttribute("aria-label", `Switch to the ${LIGHT_THEMES.has(t) ? "dark" : "light"} theme`); }
 }
 if (darkQuery) darkQuery.addEventListener("change", () => { if ((S.theme || DEFAULT_THEME) === "system") { applyTheme(); if (tab === "settings") render(); } });
 
@@ -203,7 +203,7 @@ const views = {
           ${seg("data-dens", S.density || "comfortable", [["comfortable", "Comfortable"], ["compact", "Compact"]])}</div>
       </div>
       <div class="card"><h3>Keyboard</h3>
-        <div class="setting"><div><b>Single-key shortcuts</b><div class="muted"><kbd>H</kbd> Home, <kbd>A</kbd> AI / LLM, <kbd>C</kbd> Claude &amp; Anthropic, <kbd>J</kbd> Jobs, <kbd>S</kbd> Settings, and <kbd>\`</kbd> opens the console. They never fire while you're typing. Turn them off if they get in the way of a screen reader or voice control.</div></div>
+        <div class="setting"><div><b>Single-key shortcuts</b><div class="muted"><kbd>H</kbd> Home, <kbd>L</kbd> Learn, <kbd>C</kbd> Claude &amp; Anthropic, <kbd>J</kbd> Jobs, <kbd>S</kbd> Settings, and <kbd>\`</kbd> opens the console. They never fire while you're typing. Turn them off if they get in the way of a screen reader or voice control.</div></div>
           ${seg("data-shortcuts", S.keys === false ? "off" : "on", [["on", "On"], ["off", "Off"]])}</div>
         <div class="setting"><div><b>Always on</b><div class="muted"><kbd>Ctrl</kbd> <kbd>K</kbd> or <kbd>/</kbd> opens search, where <kbd>Tab</kbd> switches the filter. The console button in the top bar opens the console.</div></div></div>
       </div>
@@ -229,14 +229,22 @@ function render() {
   let html = sec === "ai" ? trackView(sec, tab.split(":")[1]) : sec === "roles" ? roleView(tab.split(":")[1])
     : sec === "interview" ? interviewView(tab.split(":")[1]) : (views[tab] || views.home)();
   // Interview, Roles and Companies share the Jobs tab and its folder tree
-  if (isJobs(tab)) { S.lastJobs = tab; html = `<div class="tree-layout">${jobsTree()}<section class="tree-main">${html}</section></div>`; }
+  if (isJobs(tab)) { S.lastJobs = tab; html = `<div class="tree-layout">${jobsTree()}<section class="tree-main">${crumbsHtml()}${html}</section></div>`; }
   $("#view").innerHTML = html;
   highlightCode($("#view"));
   renderNav();
+  document.title = pageTitle();
   syncUrl();
   placeTree(treeTop);
   // A menu stays open while focus is inside it (:focus-within), so let go of focus after a pick
   if (document.activeElement?.closest(".dd")) document.activeElement.blur();
+}
+// The window title names the page ("Postings · Jobs · AI Prep"), so browser tabs, history and screen readers
+// can tell pages apart.
+function pageTitle() {
+  const trail = crumbTrail(), own = { claude: "Claude & Anthropic", settings: "Settings" }[tab];
+  if (trail.length) return `${trail[trail.length - 1][0]} · ${trail[0][0]} · AI Prep`;
+  return own ? `${own} · AI Prep` : "AI Prep · LLM engineering";
 }
 $("#nav").addEventListener("click", (e) => {
   const b = e.target.closest("button");
@@ -245,32 +253,56 @@ $("#nav").addEventListener("click", (e) => {
   // leaves and comes back. The page itself opens through the data-nav-go / data-trgo handlers.
   const dd = b.closest(".dd-panel")?.parentElement;
   if (dd) {
-    if (dd.matches(":hover")) { dd.classList.add("shut"); dd.addEventListener("mouseleave", () => dd.classList.remove("shut"), { once: true }); }
+    if (dd.matches(":hover")) { dd.classList.add("shut"); syncMenu(dd); }
     return;
   }
   if (b.dataset.track) { const k = b.dataset.track; go(S.lastTab?.[k] || defaultTab(k)); }
   else if ("jobs" in b.dataset) go(S.lastJobs || "interview:mock");
   else if (b.dataset.nav) go(b.dataset.nav);
 });
-// A menu opens under its link, shifted left when it would run past the window's right edge
-document.querySelectorAll(".dd").forEach((dd) => ["mouseenter", "focusin"].forEach((ev) => dd.addEventListener(ev, () => {
-  const p = $(".dd-panel", dd), over = dd.getBoundingClientRect().left - 8 + p.offsetWidth - (document.documentElement.clientWidth - 16);
-  p.style.left = over > 0 ? `${-8 - over}px` : "";
-})));
+// A menu's button says whether the menu is showing (it opens on hover or focus, and .shut keeps it closed)
+const syncMenu = (dd) => requestAnimationFrame(() => dd.firstElementChild.setAttribute("aria-expanded", dd.matches(":hover, :focus-within") && !dd.classList.contains("shut")));
+document.querySelectorAll(".dd").forEach((dd) => {
+  // A menu opens under its link, shifted left when it would run past the window's right edge
+  ["mouseenter", "focusin"].forEach((ev) => dd.addEventListener(ev, () => {
+    const p = $(".dd-panel", dd), over = dd.getBoundingClientRect().left - 8 + p.offsetWidth - (document.documentElement.clientWidth - 16);
+    p.style.left = over > 0 ? `${-8 - over}px` : "";
+    syncMenu(dd);
+  }));
+  // A menu closed by a pick or Esc opens again once the pointer or focus leaves it and comes back
+  dd.addEventListener("mouseleave", () => { if (!dd.matches(":focus-within")) dd.classList.remove("shut"); syncMenu(dd); });
+  dd.addEventListener("focusout", (e) => { if (!dd.contains(e.relatedTarget)) { if (!dd.matches(":hover")) dd.classList.remove("shut"); syncMenu(dd); } });
+  // Esc closes the menu and puts focus back on its button; Down arrow on the button opens it at the first link
+  dd.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !dd.classList.contains("shut")) { e.stopPropagation(); dd.classList.add("shut"); dd.firstElementChild.focus(); syncMenu(dd); }
+    else if (e.key === "ArrowDown" && e.target === dd.firstElementChild) { e.preventDefault(); dd.classList.remove("shut"); $(".dd-panel button", dd)?.focus(); }
+  });
+});
 $("#subnav").addEventListener("click", (e) => { const b = e.target.closest("button[data-tab]"); if (b) go(b.dataset.tab); });
 
 // Phone menu: the burger opens the sheet under the header. Picking a page, clicking outside it or Esc closes it.
 const menuOpen = () => $(".topbar").classList.contains("menu-open");
 function setMenu(open) {
   if (!open && $("#menu-sheet").contains(document.activeElement)) $("#menu-open").focus(); // focus never stays in the hidden sheet
+  if (!open && sheetOpen !== null) { sheetOpen = null; renderMenus(); } // next time it opens on the current section
   $(".topbar").classList.toggle("menu-open", open);
   $("#menu-open").setAttribute("aria-expanded", open);
+  $("#menu-open").innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${open ? "M6 6l12 12M18 6 6 18" : "M4 7h16M4 12h16M4 17h16"}"/></svg>`;
 }
 document.addEventListener("click", (e) => {
   if (e.target.closest("#menu-open")) return setMenu(!menuOpen());
+  // Learn and Jobs expand in place, one at a time; the choice holds until the menu closes
+  const sec = e.target.closest("[data-sheet]");
+  if (sec) {
+    sheetOpen = sec.getAttribute("aria-expanded") === "true" ? "" : sec.dataset.sheet;
+    document.querySelectorAll("[data-sheet]").forEach((b) => { const on = b.dataset.sheet === sheetOpen; b.setAttribute("aria-expanded", on); $("#sheet-" + b.dataset.sheet).hidden = !on; });
+    return;
+  }
   if (menuOpen() && (e.target.closest("#menu-sheet button") || !e.target.closest(".topbar"))) setMenu(false);
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && menuOpen()) setMenu(false); });
+// Skip link: straight to the page's heading, without changing the address (the hash is the router's)
+$("#skip").addEventListener("click", (e) => { e.preventDefault(); focusPage(); });
 // The links fold into the burger menu below 980px, or sooner when they don't fit (large text sizes)
 function fitHeader() {
   const bar = $(".topbar"), inner = $(".topbar-inner");
