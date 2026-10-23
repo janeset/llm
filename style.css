@@ -1147,22 +1147,14 @@ body.tree-dragging { cursor: col-resize; user-select: none; }
 .oa-track .oa-count { margin-top: auto; padding-top: var(--space-2); font: .72rem var(--mono); }
 .oa-certs { margin: 0 0 var(--space-3); }
 .oa-certs p { margin: 6px 0 0; }
-/* A long reference page: sections in a reading column, related links beside them (beneath on narrower screens),
-   and a row of jumps to the sections under the page header */
+/* A row of jumps to the page's sections under its header */
 .toc { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: calc(var(--space-2) * -1) 0 var(--space-5); }
 .toc ul { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; margin: 0; padding: 0; }
 .toc li { margin: 0; }
 .toc-link { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: none; color: var(--text); font: 500 .84rem var(--font); cursor: pointer; }
 .toc-link:hover { border-color: var(--accent-line); color: var(--accent); }
-.doc-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); gap: var(--gap) clamp(20px, 2.6vw, 40px); align-items: start; }
-.doc-main { min-width: 0; max-width: 940px; }
-.doc-side { position: sticky; top: calc(var(--head-h) + 16px); }
-.side-box p { margin: 0 0 var(--space-2); }
-.side-links { list-style: none; margin: 0; padding: 0; }
-.side-links li { margin: 0; border-top: 1px solid var(--line); }
-.side-links .link-btn { display: block; width: 100%; padding: 10px 0; color: var(--text); text-align: left; line-height: 1.4; }
-.side-links .link-btn:hover { color: var(--accent); }
-@media (max-width: 1080px) { .doc-layout { grid-template-columns: minmax(0, 1fr); } .doc-side { position: static; } }
+/* With the folder tree beside the page the jumps are in the tree; the row stays for phones, where the tree folds */
+@media (min-width: 981px) { .tree-main > .toc { display: none; } }
 .zero-note { margin: 0 0 10px; }
 
 /* Home: one large first action; stats only after the first passed exercise */
@@ -1246,5 +1238,4 @@ body.tree-dragging { cursor: col-resize; user-select: none; }
   .toc-link { min-height: 40px; }
   .code-copy { min-height: 32px; padding: 0 12px; }
   .tr-tools button { min-height: 36px; }
-  .side-links .link-btn { padding: 12px 0; }
 }

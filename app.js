@@ -381,6 +381,8 @@ document.addEventListener("click", (e) => {
   // change the address, which belongs to the router.)
   const jump = t.closest("[data-scrollto]");
   if (jump) {
+    // From the folder tree on a phone, the tree folds away first (as it does after picking a page)
+    if (jump.closest(".tree") && getComputedStyle($(".tree")).position !== "sticky") rerender();
     const sec = document.getElementById(jump.dataset.scrollto), h = sec && (sec.querySelector("h2, h3") || sec);
     if (!sec) return;
     revealEl("#" + sec.id);

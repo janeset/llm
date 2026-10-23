@@ -430,11 +430,12 @@ function treeKit(at) {
     if (on) kit.here = full;
     return `<li><button class="tr-row tr-file ${on ? "on" : ""}" ${attrs} title="${esc(full)}" aria-label="${esc(full)}"${on ? ' aria-current="page"' : ""}><span class="tr-n">${esc(label)}</span>${meta}</button></li>`;
   };
-  // A closed folder that holds the current page is marked (data-holds), so its parents know to open too.
-  kit.dir = (path, label, kids, meta = "", full = label) => {
+  // A closed folder that holds the current page is marked (data-holds), so its parents know to open too. A folder never
+  // toggled starts open when it holds the current page, or when startOpen asks for it.
+  kit.dir = (path, label, kids, meta = "", full = label, startOpen = false) => {
     kit.paths.push(path);
     kids = kids.filter(Boolean);
-    const holds = kids.some((k) => k.includes('aria-current="page"') || k.includes("data-holds")), open = path in saved ? saved[path] : holds;
+    const holds = kids.some((k) => k.includes('aria-current="page"') || k.includes("data-holds")), open = path in saved ? saved[path] : holds || startOpen;
     return `<li><button class="tr-row tr-dir ${!open && holds ? "holds" : ""}" data-tree="${path}" ${holds ? "data-holds" : ""} aria-expanded="${open}" title="${esc(full)}"><span class="tr-chev" aria-hidden="true">${open ? "▾" : "▸"}</span>${ICON_FOLDER}<span class="tr-n">${esc(label)}/</span>${meta}</button>${open ? `<ul>${kids.join("")}</ul>` : ""}</li>`;
   };
   return kit;
