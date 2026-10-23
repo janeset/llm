@@ -113,73 +113,89 @@ const ivHead = (title, subtitle) => pageHead(title, subtitle);
 
 function ivSetup() {
   const st = ivState(), p = st.ivPrefs, last = st.ivMocks[st.ivMocks.length - 1];
-  const fmt = IV_FORMATS[p.format];
-  return `<section class="card hero t-interview">
-      <div style="position:relative;z-index:1">
-        <div class="eyebrow">${st.ivMocks.length} mock${st.ivMocks.length === 1 ? "" : "s"} done${last ? ` · last on ${esc(last.date)}` : ""}</div>
-        <h1>Mock interview</h1>
-        <p>A timed set of rounds dealt from your own prep: technical questions for your target role (ones you marked Review again first) and a behavioural question. Answer out loud as if someone is listening, then score yourself honestly.</p>
-      </div></section>
-    <div class="card"><h3>Set up</h3>
-      <div class="setting"><div><b>Target role</b><div class="muted">Picks the technical question bank.</div></div>
-        <div class="seg">${IV_ROLES.map(([id, l]) => `<button data-ivrole="${id}" class="${p.role === id ? "on" : ""}">${esc(l)}</button>`).join("")}</div></div>
-      <div class="setting"><div><b>Format</b><div class="muted">${fmt.rounds.map(([k, m]) => `${ROUND_NAMES[k]} ${m}m`).join(" · ")}</div></div>
-        <div class="seg">${Object.entries(IV_FORMATS).map(([id, f]) => `<button data-ivformat="${id}" class="${p.format === id ? "on" : ""}">${esc(f.name)}</button>`).join("")}</div></div>
-      <div class="row" style="margin-top:14px"><button class="btn primary" data-ivstart>Start mock interview &rarr;</button>
-        <span class="muted">The timer for each round starts when you press Start round.</span></div></div>
+  const fmt = IV_FORMATS[p.format], mins = fmt.rounds.reduce((n, [, m]) => n + m, 0);
+  // With one role there's nothing to choose, so it's shown as a fact rather than a one-button control
+  const role = IV_ROLES.length > 1 ? `<div class="seg" role="group" aria-labelledby="lbl-ivrole">${IV_ROLES.map(([id, l]) => `<button data-ivrole="${id}" class="${p.role === id ? "on" : ""}">${esc(l)}</button>`).join("")}</div>`
+    : `<span class="pill">${esc(IV_ROLES[0][1])}</span>`;
+  return pageHead("Mock interview", "A timed set of rounds dealt from your own prep: technical questions for your target role (ones you marked Review again come first) and a behavioural question. Answer out loud as if someone is listening, then score yourself honestly.", {
+      eyebrow: last ? `${st.ivMocks.length} mock${st.ivMocks.length === 1 ? "" : "s"} done · last on ${esc(last.date)}` : "",
+      actions: last ? `<button class="btn small" data-nav-go="interview:history">See your history</button>` : "" })
+    + `<ol class="iv-flow" aria-label="How a mock interview works">
+        <li><b>Pick a format</b><span class="muted">How many rounds, and how long each one lasts.</span></li>
+        <li><b>Answer each round out loud</b><span class="muted">Every round has its own timer. It starts when you press Start round, and you can pause it.</span></li>
+        <li><b>Score yourself, then save</b><span class="muted">Weak technical answers come back as Review again in your question bank. History keeps every mock.</span></li>
+      </ol>
+    <section class="card iv-setup" aria-labelledby="h-ivsetup"><h2 class="card-title" id="h-ivsetup">Set up your mock</h2>
+      <div class="setting"><div><b id="lbl-ivrole">Target role</b><div class="muted">Picks the technical question bank.</div></div>${role}</div>
+      <div class="setting"><div><b id="lbl-ivformat">Format</b><div class="muted">${fmt.rounds.length} rounds, ${mins} minutes: ${fmt.rounds.map(([k, m]) => `${ROUND_NAMES[k]} ${m} min`).join(", ")}</div></div>
+        <div class="seg" role="group" aria-labelledby="lbl-ivformat">${Object.entries(IV_FORMATS).map(([id, f]) => `<button data-ivformat="${id}" class="${p.format === id ? "on" : ""}">${esc(f.name)}</button>`).join("")}</div></div>
+      <div class="iv-start"><button class="btn primary btn-lg" data-ivstart>Start mock interview &rarr;</button>
+        <span class="muted">Nothing is timed until you press Start round. The mock is saved as you go, so you can leave and come back to it.</span></div></section>
     <div class="cols-2">
-      <div class="card"><h3>How to run it</h3><ol>${MOCK_TIPS.map((t) => `<li>${esc(t)}</li>`).join("")}</ol></div>
-      <div class="card"><h3>Behavioural answers: STAR</h3><ul>
+      <section class="card" aria-labelledby="h-ivtips"><h2 class="card-title" id="h-ivtips">How to answer</h2><ol>${MOCK_TIPS.map((t) => `<li>${esc(t)}</li>`).join("")}</ol></section>
+      <section class="card" aria-labelledby="h-ivstar"><h2 class="card-title" id="h-ivstar">Behavioural answers: STAR</h2><ul>
         <li><b>Situation</b>: one or two sentences of context.</li><li><b>Task</b>: what you were responsible for.</li>
         <li><b>Action</b>: what <i>you</i> did, in detail. Most of the answer goes here.</li><li><b>Result</b>: the outcome, with a number if you can, and what you learned.</li></ul>
-        <div class="row"><button class="btn small" data-nav-go="interview:stories">Open your story bank (${st.stories.length})</button></div></div>
+        <div class="row"><button class="btn small" data-nav-go="interview:stories">Open your story bank (${st.stories.length})</button></div></section>
     </div>`;
 }
 
+// The round clock's state in words, so it never rests on colour alone
+const clockState = (r) => {
+  const over = r.mins * 60 - roundSecs(r) < 0;
+  return r.since ? (over ? "Over time" : "Running") : roundSecs(r) ? (over ? "Paused, over time" : "Paused") : "Not started";
+};
 function ivRun(m) {
   const r = m.rounds[m.cur], n = m.rounds.length, secs = roundSecs(r), left = r.mins * 60 - secs;
   if (r.since) ivTimer = setInterval(tickIv, 1000);
-  const steps = m.rounds.map((x, i) => `<span class="iv-step ${i === m.cur ? "on" : ""} ${x.score ? "done" : ""}">${i + 1}. ${ROUND_NAMES[x.kind]}${x.score ? ` · ${x.score}/4` : ""}</span>`).join("");
-  return `<div class="card iv-bar">
-      <div class="iv-steps">${steps}</div>
-      <div class="row"><span id="iv-timer" class="timer ${left < 0 ? "over" : ""}">${fmtLeft(left)}</span>
+  const steps = m.rounds.map((x, i) => `<li class="iv-step ${i === m.cur ? "on" : ""} ${x.score ? "done" : ""}"${i === m.cur ? ' aria-current="step"' : ""}>${i + 1}<span class="iv-step-name">. ${ROUND_NAMES[x.kind]}</span>${x.score ? ` · ${x.score}/4<span class="sr-only"> scored</span>` : ""}</li>`).join("");
+  return `<header class="page-head iv-head"><div class="page-head-main"><h1>Mock interview</h1><p class="page-sub">Round ${m.cur + 1} of ${n} · ${esc(IV_FORMATS[m.format].name)}</p></div></header>
+    <div class="card iv-bar">
+      <ol class="iv-steps" aria-label="Rounds">${steps}</ol>
+      <div class="iv-clock"><span class="iv-state ${left < 0 ? "over" : ""}" id="iv-state">${clockState(r)}</span>
+        <span id="iv-timer" class="timer ${left < 0 ? "over" : ""}" role="timer"><span class="sr-only">${left < 0 ? "Over time by " : "Time left: "}</span>${fmtLeft(left)}</span>
         <button class="btn ${r.since ? "" : "primary"}" data-ivclock>${r.since ? "Pause" : secs ? "Resume" : "Start round"}</button></div></div>
     ${roundBody(m, r)}
-    <div class="card"><div class="section-head"><h3>Score this round</h3><span class="muted">Be honest: weak rounds come back in History and in your question bank.</span></div>
-      <div class="seg iv-score">${SCORES.map(([v, l]) => `<button data-ivscore="${v}" class="${r.score === v ? "on" : ""}">${v} · ${l}</button>`).join("")}</div>
+    <section class="card" aria-labelledby="h-ivscore"><div class="section-head"><h2 class="card-title" id="h-ivscore">Score this round</h2><span class="muted">Be honest: weak rounds come back in History and in your question bank.</span></div>
+      <div class="seg iv-score" role="group" aria-labelledby="h-ivscore">${SCORES.map(([v, l]) => `<button data-ivscore="${v}" class="${r.score === v ? "on" : ""}"><b>${v}</b> <span>${l}</span></button>`).join("")}</div>
       <label class="fld" style="margin-top:12px"><span>Notes: what went well, what to fix</span><textarea data-ivnotes rows="3" placeholder="e.g. Jumped to code before clarifying input size">${esc(r.notes)}</textarea></label>
-      <div class="row between"><button class="btn ghost danger" data-ivquit>Abandon mock</button>
-        <div class="row">${m.cur > 0 ? `<button class="btn" data-ivgo="${m.cur - 1}">&larr; Previous</button>` : ""}
-        ${m.cur < n - 1 ? `<button class="btn primary" data-ivgo="${m.cur + 1}">Next round &rarr;</button>` : `<button class="btn primary" data-ivfinish>Finish &amp; save</button>`}</div></div></div>`;
+      <div class="iv-actions"><button class="btn ghost danger" data-ivquit>Abandon mock</button>
+        <div class="row">${m.cur > 0 ? `<button class="btn" data-ivgo="${m.cur - 1}">&larr; Previous round</button>` : ""}
+        ${m.cur < n - 1 ? `<button class="btn primary" data-ivgo="${m.cur + 1}">Next round &rarr;</button>` : `<button class="btn primary" data-ivfinish>Finish &amp; save</button>`}</div></div></section>`;
 }
 const fmtLeft = (s) => (s < 0 ? "+" : "") + fmt(Math.abs(Math.round(s)));
 function tickIv() {
   const m = S.ivActive, el = $("#iv-timer");
   if (!m || !el) { clearInterval(ivTimer); ivTimer = null; return; }
-  const r = m.rounds[m.cur], left = r.mins * 60 - roundSecs(r);
-  el.textContent = fmtLeft(left); el.classList.toggle("over", left < 0);
+  const r = m.rounds[m.cur], left = r.mins * 60 - roundSecs(r), wasOver = el.classList.contains("over");
+  el.firstChild.textContent = left < 0 ? "Over time by " : "Time left: ";
+  el.lastChild.textContent = fmtLeft(left); el.classList.toggle("over", left < 0);
+  $("#iv-state").textContent = clockState(r); $("#iv-state").classList.toggle("over", left < 0);
+  if (left < 0 && !wasOver) announce("Time's up for this round. The clock keeps counting the extra time.");
 }
 
 function roundBody(m, r) {
-  const reveal = (label, html) => r.shown ? `<div class="callout">${html}</div><button class="btn small ghost" data-ivshow>Hide ${label}</button>` : `<button class="btn small" data-ivshow>Show ${label}</button>`;
+  // The answer sits after its button, and the button says whether it's showing
+  const reveal = (label, html) => `<button class="btn small ${r.shown ? "ghost" : ""}" data-ivshow aria-expanded="${r.shown}" aria-controls="iv-reveal">${r.shown ? "Hide" : "Show"} ${label}</button>
+    <div class="callout iv-reveal" id="iv-reveal" ${r.shown ? "" : "hidden"}>${html}</div>`;
   const head = (extra = "") => `<div class="label">Round ${m.cur + 1} · ${ROUND_NAMES[r.kind]} · ${r.mins} min</div>${extra}`;
   if (r.kind === "tech") {
     const T = TRACKS[r.track], q = T.questions.find((x) => x.id === r.ref), t = topicById(T, q.topic);
-    return `<div class="card">${head()}<h2 style="margin:6px 0 8px">${esc(q.q)}</h2>
+    return `<section class="card iv-round" aria-labelledby="iv-q">${head()}<h2 class="iv-q" id="iv-q">${esc(q.q)}</h2>
       <div class="row" style="margin-bottom:10px"><span class="pill">${esc(T.name)}</span>${t ? `<span class="pill">${esc(t.title)}</span>` : ""}</div>
       <p class="muted">Answer in about two minutes: the short answer first, then how it works, a trade-off, and an example from your own work.</p>
       ${reveal("model answer", esc(q.a))}
-      ${t ? `<button class="btn small ghost" ${goLearn(T.id, t.id)}>Lesson: ${esc(t.title)}</button>` : ""}</div>`;
+      ${t ? `<p class="iv-lesson muted">Related lesson: <button class="link-btn inline-link" ${goLearn(T.id, t.id)}>${esc(t.title)}</button>. Your mock stays in progress while you're there.</p>` : ""}</section>`;
   }
   const q = BEHAVIORAL_QS.find((x) => x.id === r.ref) || (() => { const x = ROLES.questions.find((y) => y.id === r.ref); return x && { q: x.q, themes: ["impact"], tip: x.a }; })();
   const stories = ivState().stories.filter((s) => s.themes.some((t) => q.themes.includes(t)));
-  return `<div class="card">${head()}<h2 style="margin:6px 0 8px">${esc(q.q)}</h2>
+  return `<section class="card iv-round" aria-labelledby="iv-q">${head()}<h2 class="iv-q" id="iv-q">${esc(q.q)}</h2>
     <div class="row" style="margin-bottom:10px">${q.themes.map((t) => `<span class="pill">${esc(themeName(t))}</span>`).join("")}</div>
     <p class="muted">Use STAR and keep it to about two minutes. Most of the time goes on your Actions; finish with a measurable Result.</p>
-    ${reveal("tip", esc(q.tip))}</div>
-    <div class="card"><div class="section-head"><h3>Your matching stories <span class="muted">${stories.length}</span></h3><button class="btn small ghost" data-ivnewstory="${q.themes.join(",")}">+ Write a story for this</button></div>
+    ${reveal("tip", esc(q.tip))}</section>
+    <section class="card" aria-labelledby="h-ivstories"><div class="section-head"><h2 class="card-title" id="h-ivstories">Your matching stories <span class="muted">${stories.length}</span></h2><button class="btn small ghost" data-ivnewstory="${q.themes.join(",")}">+ Write a story for this</button></div>
       ${stories.length ? stories.map((s) => `<details class="iv-story"><summary>${esc(s.title || "Untitled story")}</summary>${starHtml(s)}</details>`).join("")
-        : `<p class="muted" style="margin:0">No story covers ${q.themes.map((t) => `<b>${esc(themeName(t).toLowerCase())}</b>`).join(" or ")} yet. Answer from memory now, then write it up in the story bank.</p>`}</div>`;
+        : `<p class="muted" style="margin:0">No story covers ${q.themes.map((t) => `<b>${esc(themeName(t).toLowerCase())}</b>`).join(" or ")} yet. Answer from memory now, then write it up in the story bank.</p>`}</section>`;
 }
 const starHtml = (s) => `<dl class="star">${[["Situation", s.s], ["Task", s.t], ["Action", s.a], ["Result", s.r]].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v || "—")}</dd>`).join("")}</dl>`;
 
@@ -190,6 +206,14 @@ function finishMock() {
   m.rounds.filter((r) => r.kind === "tech" && r.score).forEach((r) => { trState(r.track).qa[r.ref] = r.score >= 3 ? "got" : "review"; });
   S.ivMocks.push({ id: m.id, date: m.date, role: m.role, format: m.format, rounds: m.rounds.map(({ kind, ref, track, title, mins, score, notes, acc }) => ({ kind, ref, track, title, mins, score, notes, secs: Math.round(acc) })) });
   S.ivActive = null; bump(); save();
+}
+// After starting a mock or changing round, focus goes to the round's question (so the page doesn't drop keyboard and
+// screen reader users back at the top) and the round number is announced.
+function ivFocusRound(prefix) {
+  const m = S.ivActive, q = $("#iv-q");
+  if (!m || !q) return;
+  q.tabIndex = -1; q.focus({ preventScroll: true });
+  announce(`${prefix ? prefix + " " : ""}Round ${m.cur + 1} of ${m.rounds.length}: ${ROUND_NAMES[m.rounds[m.cur].kind]}.`);
 }
 
 // ---------------- history ----------------
@@ -236,18 +260,18 @@ function ivStories() {
   return ivHead(`Story bank <span class="muted">${stories.length}</span>`, "Write each story once in STAR form and tag it. Mock interviews show your matching stories in behavioural rounds.") +
     (d ? storyForm(d) : `<div class="row" style="margin-bottom:var(--gap)"><button class="btn primary" data-ivnewstory="">+ New story</button><span class="muted">Aim for 6-8 strong stories that together cover every theme.</span></div>`) +
     `<div class="cols-2">
-      <div class="card"><h3>Theme coverage</h3><div class="list">${STORY_THEMES.map(([k, l]) => { const n = themeCount(k); return `<div class="li"><span>${esc(l)}</span>${n ? `<span class="badge done">${n} stor${n === 1 ? "y" : "ies"}</span>` : `<button class="btn small" data-ivnewstory="${k}">Write one</button>`}</div>`; }).join("")}</div></div>
-      <div class="card"><h3>Top skills for ${esc(roleName(role))}</h3><p class="muted" style="margin-top:0">The most requested skills in your postings. A story that shows each one makes your answers concrete.</p>
+      <div class="card"><h2 class="card-title">Theme coverage</h2><div class="list">${STORY_THEMES.map(([k, l]) => { const n = themeCount(k); return `<div class="li"><span>${esc(l)}</span>${n ? `<span class="badge done">${n} stor${n === 1 ? "y" : "ies"}</span>` : `<button class="btn small" data-ivnewstory="${k}">Write one</button>`}</div>`; }).join("")}</div></div>
+      <div class="card"><h2 class="card-title">Top skills for ${esc(roleName(role))}</h2><p class="muted" style="margin-top:0">The most requested skills in your postings. A story that shows each one makes your answers concrete.</p>
         <div class="rl-tags">${topSkills.map((s) => `<span class="tag ${skillCovered(s.id) ? "lv-confident" : "lv-none"}" title="${skillCovered(s.id) ? "Covered by a story" : "No story yet"}">${skillCovered(s.id) ? "&#10003; " : ""}${esc(s.name)}</span>`).join("")}</div></div>
     </div>` +
-    (stories.length ? stories.map((s) => `<div class="card" id="story-${esc(s.id)}"><div class="section-head"><h3 style="margin:0">${esc(s.title || "Untitled story")}</h3>
+    (stories.length ? stories.map((s) => `<div class="card" id="story-${esc(s.id)}"><div class="section-head"><h2 class="card-title">${esc(s.title || "Untitled story")}</h2>
         <div class="row"><button class="btn small" data-ivedit="${esc(s.id)}">Edit</button><button class="btn small danger" data-ivsdel="${esc(s.id)}">Delete</button></div></div>
         <div class="row" style="margin:8px 0">${s.themes.map((t) => `<span class="pill">${esc(themeName(t))}</span>`).join("")}${s.skills.map((id) => skillById(id)).filter(Boolean).map((k) => `<span class="tag">${esc(k.name)}</span>`).join("")}</div>
         ${starHtml(s)}</div>`).join("") : d ? "" : `<div class="card empty"><span class="big">&#128221;</span>No stories yet. Start with your proudest project and one failure you learned from.</div>`);
 }
 function storyForm(d) {
   const area = (k, label, ph) => `<label class="fld"><span>${label}</span><textarea data-ivs="${k}" rows="${k === "a" ? 4 : 2}" placeholder="${esc(ph)}">${esc(d[k])}</textarea></label>`;
-  return `<div class="card" id="iv-form"><div class="section-head"><h3 style="margin:0">${d.id ? "Edit story" : "New story"}</h3><button class="btn small ghost" data-ivscancel>Cancel</button></div>
+  return `<div class="card" id="iv-form"><div class="section-head"><h2 class="card-title">${d.id ? "Edit story" : "New story"}</h2><button class="btn small ghost" data-ivscancel>Cancel</button></div>
     <label class="fld" style="margin-top:12px"><span>Title</span><input data-ivs="title" value="${esc(d.title)}" placeholder="e.g. Cut report generation from 2 hours to 5 minutes" autocomplete="off"></label>
     ${area("s", "Situation", "Where you were, the team, what was going on.")}${area("t", "Task", "What you were responsible for, and why it mattered.")}
     ${area("a", "Action", "What you did, step by step. Say 'I', not 'we'.")}${area("r", "Result", "The outcome with numbers if you can, and what you learned.")}
@@ -273,7 +297,7 @@ document.addEventListener("click", (e) => {
   if (d.ivreview) { (views._trqf = views._trqf || {})[d.ivreview] = { topic: "", status: "review" }; return go(d.ivreview + ":questions"); }
   if (d.ivrole) { st.ivPrefs.role = d.ivrole; save(); return rerender(); }
   if (d.ivformat) { st.ivPrefs.format = d.ivformat; save(); return rerender(); }
-  if (d.ivstart !== undefined) { startMock(); render(); return window.scrollTo(0, 0); }
+  if (d.ivstart !== undefined) { startMock(); render(); window.scrollTo(0, 0); return ivFocusRound("Mock started."); }
   if (d.ivclock !== undefined && r) { if (r.since) pauseRound(r); else r.since = Date.now(); save(); return rerender(); }
   if (d.ivscore && r) { r.score = +d.ivscore; save(); return rerender(); }
   if (d.ivshow !== undefined && r) { r.shown = !r.shown; save(); return rerender(); }
@@ -281,14 +305,19 @@ document.addEventListener("click", (e) => {
     const wasRunning = !!r.since; pauseRound(r);
     m.cur = +d.ivgo;
     if (wasRunning && !m.rounds[m.cur].score) m.rounds[m.cur].since = Date.now(); // keep the clock going into the next round
-    save(); render(); return window.scrollTo(0, 0);
+    save(); render(); window.scrollTo(0, 0);
+    return ivFocusRound("");
   }
   if (d.ivfinish !== undefined && m) {
     const unscored = m.rounds.filter((x) => !x.score).length;
     if (unscored && !confirm(`${unscored} round${unscored === 1 ? " isn't" : "s aren't"} scored yet. Save anyway?`)) return;
-    finishMock(); return go("interview:history");
+    finishMock(); go("interview:history");
+    return announce("Mock saved. It's at the top of your history.");
   }
-  if (d.ivquit !== undefined && m) { if (confirm("Abandon this mock? It won't be saved.")) { st.ivActive = null; save(); render(); } return; }
+  if (d.ivquit !== undefined && m) {
+    if (confirm("Abandon this mock? It won't be saved.")) { st.ivActive = null; save(); render(); focusPage(); announce("Mock abandoned. Nothing was saved."); }
+    return;
+  }
   if (d.ivdel) { if (confirm("Delete this mock from your history?")) { st.ivMocks = st.ivMocks.filter((x) => x.id !== d.ivdel); save(); } return rerender(); }
   // stories
   if (d.ivnewstory !== undefined) { views._ivDraft = blankStory(d.ivnewstory ? d.ivnewstory.split(",") : []); go("interview:stories"); return revealEl("#iv-form"); }

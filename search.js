@@ -40,7 +40,7 @@ function buildSearchIndex() {
   // Claude & Anthropic: official courses and certifications, and the OpenAI Academy entry
   CLAUDE.courses.forEach((c, i) => add("claude", c.title, `Claude & Anthropic · Course ${i + 1}`, c.desc, () => { go("claude"); revealEl("#course-" + c.id); }));
   CLAUDE_CERTS.forEach((c) => add("claude", c.name, "Claude & Anthropic · Certification", c.why + " " + CLAUDE.eligibility, () => go("ai:certs")));
-  add("claude", "OpenAI Academy", "OpenAI · Courses", OPENAI_LEARN.tracks.map((t) => t.join(" ")).join(" ") + " certification not yet verified", () => { go("claude"); revealEl("#openai-learn"); });
+  add("claude", "OpenAI Academy", "OpenAI · Courses", OPENAI_LEARN.tracks.map((tr) => [tr.name, tr.audience, tr.desc, ...oaCourses(tr).map(([c]) => c)].join(" ")).join(" ") + " certification not yet verified", () => { go("claude"); revealEl("#openai-learn"); });
 
   // Roles: skills and postings
   SKILLS.forEach((s) => add("skill", s.name, `Role skill · ${s.area}`, (SKILL_KEYWORDS[s.id] || []).join(" "), () => { views._rlf = { area: s.area, level: "" }; go("roles:skills"); revealEl(`[data-rlconf="${s.id}"]`); }));

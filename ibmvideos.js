@@ -133,16 +133,12 @@ function ibmView(T, st) {
 function ibmOverview() {
   const aiLists = IBM_PLAYLIST_GROUPS.filter((g) => g.ai).flatMap((g) => g.lists), doneCount = aiLists.filter((p) => ibmDone()[p.id]).length;
   const lessonCount = ibmLessonGroups().reduce((n, [, TT, tids]) => n + tids.reduce((m, tid) => m + ibmLessonVideos(TT, tid).length, 0), 0);
-  return `<section class="card hero t-ai">
-      <div style="position:relative;z-index:1">
-        <div class="eyebrow">IBM Technology on YouTube</div>
-        <h1>IBM Videos</h1>
-        <p>Short whiteboard explainers that pair well with every lesson: ${ibmPlaylists().length} playlists and ${lessonCount} videos picked for specific lessons. Pick anything from the panel to watch it here.</p>
-        <div class="row" style="margin-top:14px"><a class="btn primary" href="${IBM_CHANNEL.url}" target="_blank" rel="noopener">Visit the channel &nearr;</a><a class="btn" href="${IBM_CHANNEL.url}/playlists" target="_blank" rel="noopener">All playlists &nearr;</a></div>
-      </div>
-      ${ring(aiLists.length ? doneCount / aiLists.length : 0, `${doneCount}/${aiLists.length} AI playlists`)}
-    </section>` +
-    IBM_PLAYLIST_GROUPS.filter((g) => g.ai).map((g) => `<div class="section-head" style="margin-top:6px"><h3>${esc(g.name)}</h3><span class="muted">${g.lists.length} playlist${g.lists.length === 1 ? "" : "s"}</span></div>
+  // The ring appears once a playlist is marked done
+  return pageHead("IBM Videos", `Short whiteboard explainers that pair well with every lesson: ${ibmPlaylists().length} playlists and ${lessonCount} videos picked for specific lessons. Pick anything from the panel to watch it here.`, {
+      eyebrow: "IBM Technology on YouTube",
+      actions: `<a class="btn primary" href="${IBM_CHANNEL.url}" target="_blank" rel="noopener">Visit the channel ${NEW_TAB}</a><a class="btn" href="${IBM_CHANNEL.url}/playlists" target="_blank" rel="noopener">All playlists ${NEW_TAB}</a>`,
+      aside: doneCount ? ring(doneCount / aiLists.length, `${doneCount}/${aiLists.length} AI playlists`) : "" }) +
+    IBM_PLAYLIST_GROUPS.filter((g) => g.ai).map((g) => `<div class="section-head" style="margin-top:6px"><h2 class="card-title">${esc(g.name)}</h2><span class="muted">${g.lists.length} playlist${g.lists.length === 1 ? "" : "s"}</span></div>
       <div class="pl-grid">${g.lists.map(ibmPlaylistCard).join("")}</div>`).join("") +
     `<p class="muted" style="font-size:.82rem">Engineering, data and security playlists are in the collapsible groups in the panel. Playlist sizes as of October 2026; the channel adds videos regularly. ${verifiedTag(VIDEOS_VERIFIED)}: every playlist and video link resolved.</p>`;
 }
@@ -151,13 +147,13 @@ function ibmPlaylistPage(id) {
   const g = IBM_PLAYLIST_GROUPS.find((x) => x.lists.some((p) => p.id === id)), p = g.lists.find((x) => x.id === id), done = !!ibmDone()[id], pairs = pairTags(p);
   const list = plVideos(p), playing = (views._ibmPlay || {})[id], now = list.find(([v]) => v === playing);
   const src = playing ? `${playing}?list=${id}&autoplay=1` : `videoseries?list=${id}`;
-  return `<div class="label">${esc(g.name)}</div><h2>${esc(p.title)} ${done ? '<span class="badge done">Done</span>' : ""}</h2>
+  return `<div class="label">${esc(g.name)}</div><h1>${esc(p.title)} ${done ? '<span class="badge done">Done</span>' : ""}</h1>
     <div class="card" id="ibm-player"><div class="video" style="margin-top:0"><iframe src="https://www.youtube-nocookie.com/embed/${src}" title="${esc(p.title)} playlist" loading="lazy" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
       ${now ? `<p style="margin-top:0"><span class="label">Now playing</span><br><b>${esc(now[1])}</b></p>` : ""}
       <div class="row" style="margin-bottom:8px"><span class="pill">${plCount(p) ? `${plCount(p)} videos` : "Ongoing series"}</span>${list.length ? `<span class="pill">${plWatched(p)} watched</span>` : ""}<span class="pill">IBM Technology</span></div>
       ${p.desc ? `<p style="margin-bottom:0">${esc(p.desc)}</p>` : ""}</div>
     ${list.length ? ibmVideoList(p, list, playing) : ""}
-    ${pairs ? `<div class="card"><h3>Pairs with these lessons</h3><div class="rl-tags">${pairs}</div></div>` : ""}
+    ${pairs ? `<div class="card"><h2 class="card-title">Pairs with these lessons</h2><div class="rl-tags">${pairs}</div></div>` : ""}
     <div class="row" style="margin-bottom:var(--gap)"><button class="btn ${done ? "" : "primary"}" data-ibmdone="${id}">${done ? "Done ✓ (undo)" : "Mark as done"}</button>
       <a class="btn ghost" href="https://www.youtube.com/playlist?list=${id}" target="_blank" rel="noopener">Open on YouTube &nearr;</a></div>`;
 }
@@ -166,18 +162,18 @@ function ibmLessonPage(key) {
   const [, tr, tid] = key.split(":"), TT = TRACKS[tr], t = topicById(TT, tid);
   const group = (TT.groups.find(([, ids]) => ids.includes(tid)) || [""])[0];
   const lists = ibmPlaylists().filter((p) => p.pairs.some(([a, b]) => a === tr && b === tid));
-  return `<div class="label">${tr === "roles" ? "Roles · " : ""}${esc(group)}</div><h2>${esc(t.title)}</h2>
-    <div class="card"><div class="section-head"><h3>IBM videos for this lesson</h3><button class="btn small" ${goLearn(tr, tid)}>Open lesson &rarr;</button></div>${vids(ibmLessonVideos(TT, tid))}</div>
-    ${lists.length ? `<div class="card"><h3>Related playlists</h3><div class="list">${lists.map((p) => `<div class="li"><div><span class="t">${esc(p.title)}</span><div class="muted">${plCount(p) ? `${plCount(p)} videos` : "Series"}</div></div><button class="btn small" data-ibmsel="pl:${p.id}">Watch</button></div>`).join("")}</div></div>` : ""}`;
+  return `<div class="label">${tr === "roles" ? "Roles · " : ""}${esc(group)}</div><h1>${esc(t.title)}</h1>
+    <div class="card"><div class="section-head"><h2 class="card-title">IBM videos for this lesson</h2><button class="btn small" ${goLearn(tr, tid)}>Open lesson &rarr;</button></div>${vids(ibmLessonVideos(TT, tid))}</div>
+    ${lists.length ? `<div class="card"><h2 class="card-title">Related playlists</h2><div class="list">${lists.map((p) => `<div class="li"><div><span class="t">${esc(p.title)}</span><div class="muted">${plCount(p) ? `${plCount(p)} videos` : "Series"}</div></div><button class="btn small" data-ibmsel="pl:${p.id}">Watch</button></div>`).join("")}</div></div>` : ""}`;
 }
 
 function ibmSearch() {
   const q = (views._ibmq || "").toLowerCase(), match = (v) => !q || v.title.toLowerCase().includes(q);
   const blocks = ibmLessonGroups().map(([g, TT, tids]) => {
     const rows = tids.map((tid) => [topicById(TT, tid), ibmLessonVideos(TT, tid).filter(match)]).filter(([, v]) => v.length);
-    return rows.length ? `<div class="label" style="margin:18px 0 8px">${esc(g)}</div>` + rows.map(([t, v]) => `<div class="card"><div class="section-head"><h3>${esc(t.title)}</h3><button class="btn small ghost" ${goLearn(TT.id, t.id)}>Open lesson &rarr;</button></div>${vids(v)}</div>`).join("") : "";
+    return rows.length ? `<div class="label" style="margin:18px 0 8px">${esc(g)}</div>` + rows.map(([t, v]) => `<div class="card"><div class="section-head"><h2 class="card-title">${esc(t.title)}</h2><button class="btn small ghost" ${goLearn(TT.id, t.id)}>Open lesson &rarr;</button></div>${vids(v)}</div>`).join("") : "";
   }).join("");
-  return `<h2>Search lesson videos</h2><p class="muted">Every IBM video picked for an AI or Roles lesson, filtered by title.</p>
+  return `<h1>Search lesson videos</h1><p class="muted">Every IBM video picked for an AI or Roles lesson, filtered by title.</p>
     <div class="card toolbar"><label class="search">${ICON_SEARCH}<input data-ibmq placeholder="Search video titles..." value="${esc(views._ibmq || "")}" autocomplete="off"></label></div>
     ${blocks || '<div class="card empty">No videos match that search.</div>'}`;
 }

@@ -47,17 +47,31 @@ AI.certs.push(...CLAUDE_CERTS);
 
 // OpenAI: only what could be confirmed on OpenAI's own site. The course hub and its four tracks were
 // verified; no OpenAI certification page could be verified, so the UI says so.
+// The four tracks in the order the course hub shows them. Each track's courses come in groups ([label, courses]; the
+// label is null for a single group), and each course is [title, url, who it's for or what it uses], all as OpenAI
+// labels them. `pick` marks the track that fits this app's AI engineering course best.
+const OA = (slug) => `https://academy.openai.com/public/courses/${slug}`;
 const OPENAI_LEARN = {
-  verified: "2026-10-13",
+  verified: "2026-10-22",
   url: "https://academy.openai.com/pages/courses",
   tracks: [
-    ["Apply AI at Work", "For knowledge workers: AI basics, then repeatable workflows and directing work with agents."],
-    ["Build with AI", "For builders: the AI Builder courses on designing, building, evaluating and deploying AI solutions with Codex and the OpenAI API."],
-    ["Lead AI Adoption", "For leaders: work through one AI initiative and draft an AI strategy, with ownership, governance, a roadmap and an adoption plan."],
-    ["Teach and Learn with AI", "For education: using AI to study, teach and learn faster."],
+    { name: "Apply AI at Work", audience: "Knowledge workers", desc: "AI basics, then repeatable workflows and directing work with agents.",
+      groups: [[null, [["AI Foundations", OA("ai-foundations-dnq5w"), "New to AI"], ["Applied AI Foundations", OA("applied-ai-foundations-szsmv"), "Some experience"],
+        ["Agents and Workflows", OA("agents-and-workflows-y0qoc"), "Comfortable using AI"]]]] },
+    { name: "Build with AI", audience: "Builders", pick: true, desc: "The AI Builder courses: scope, build, evaluate and run AI solutions with the OpenAI API and Codex.",
+      groups: [["OpenAI API", [["Scope AI Solutions", OA("scope-ai-solutions-kjplw")], ["Evaluate AI Applications", OA("evaluate-ai-applications-pxds7")],
+        ["Design and Build Agentic Systems", OA("design-and-build-agentic-systems-k5uke")], ["Build with Retrieval-Augmented Generation", OA("build-with-retrieval-augmented-generation-2v6xg")],
+        ["Optimize AI Application Performance", OA("optimize-ai-application-performance-1k50h")]]],
+        ["Codex", [["Get Started with Codex", OA("get-started-with-codex-jkhsq")], ["Extend Codex Workflows", OA("extend-codex-workflows-4e61p")],
+          ["Scale Codex Across Governed Teams and Systems", OA("scale-codex-across-teams-and-systems-jr83a")]]]] },
+    { name: "Lead AI Adoption", audience: "Leaders", desc: "Work through one AI initiative and draft an AI strategy, with ownership, governance, a roadmap and an adoption plan.",
+      groups: [[null, [["AI Leadership", OA("ai-leadership-kaf7k")]]]] },
+    { name: "Teach and Learn with AI", audience: "Education", desc: "Using AI to study, teach and learn faster.",
+      groups: [[null, [["AI for Educators", OA("ai-for-educators-lc8j1"), "For educators"], ["AI for College Students", OA("ai-for-college-students-gxgmr"), "For college students"]]]] },
   ],
   certs: "not yet verified",
 };
+const oaCourses = (tr) => tr.groups.flatMap(([, cs]) => cs);
 
 const lessonTags = (tids) => tids.map((tid) => topicById(AI, tid)).filter(Boolean).map((t) => `<button class="tag tag-btn" ${goLearn("ai", t.id)}>${esc(t.title)}</button>`).join("");
 
@@ -66,48 +80,64 @@ function claudeEligibility() {
     organizations. Check eligibility on the <a href="${CLAUDE.academy}" target="_blank" rel="noopener">Partner Academy</a> before you plan around it.</div>`;
 }
 
-function claudeCoursesCard() {
-  return `<div class="card" id="claude-courses"><div class="section-head"><h3>Anthropic courses, in order</h3>${verifiedTag(CLAUDE.verified)}</div>
+// The cards take the heading level that fits where they're shown: h2 on the Claude & Anthropic page, h3 inside
+// Learn and on the Certifications page.
+function claudeCoursesCard(h = 3) {
+  return `<section class="card" id="claude-courses" aria-labelledby="h-claude-courses"><div class="section-head"><h${h} class="card-title" id="h-claude-courses">Anthropic courses, in order</h${h}>${verifiedTag(CLAUDE.verified)}</div>
     <p class="muted" style="margin-top:0">Free, self-paced courses from Anthropic Academy. Start at the top: each one builds on the one before.</p>
-    <ol class="course-list">${CLAUDE.courses.map((c) => `<li id="course-${c.id}"><div class="row between" style="align-items:flex-start"><div style="flex:1;min-width:0"><a href="${c.url}" target="_blank" rel="noopener"><b>${esc(c.title)}</b> &nearr;</a>
-      <div class="muted">${esc(c.desc)}</div>${c.lessons.length ? `<div class="rl-tags" style="margin-top:6px">${lessonTags(c.lessons)}</div>` : ""}</div></div></li>`).join("")}</ol>
-    <a class="btn small ghost" href="${CLAUDE.catalog}" target="_blank" rel="noopener">Full Anthropic course catalog &nearr;</a></div>`;
+    <ol class="course-list">${CLAUDE.courses.map((c, i) => `<li id="course-${c.id}"><span class="course-n" aria-hidden="true">${i + 1}</span><div class="course-body">
+      <a href="${c.url}" target="_blank" rel="noopener"><b>${esc(c.title)}</b> ${NEW_TAB}</a><p class="muted">${esc(c.desc)}</p>
+      ${c.lessons.length ? `<div class="course-lessons"><span class="label">Related lessons here</span>${lessonTags(c.lessons)}</div>` : ""}</div></li>`).join("")}</ol>
+    <a class="btn small ghost" href="${CLAUDE.catalog}" target="_blank" rel="noopener">Full Anthropic course catalog ${NEW_TAB}</a></section>`;
 }
 
-function claudeCertsSummary() {
-  return `<div class="card" id="claude-certs"><div class="section-head"><h3>Claude certifications</h3>${verifiedTag(CLAUDE.verified)}</div>
+function claudeCertsSummary(h = 3) {
+  return `<section class="card" id="claude-certs" aria-labelledby="h-claude-certs"><div class="section-head"><h${h} class="card-title" id="h-claude-certs">Claude certifications</h${h}>${verifiedTag(CLAUDE.verified)}</div>
     ${claudeEligibility()}
-    <div class="list" style="margin-top:10px">${CLAUDE_CERTS.map((c) => `<div class="li"><div><span class="t">${esc(c.name)}</span><div class="muted">${esc(c.why)}</div></div>
-      <a class="btn small ghost" href="${c.link}" target="_blank" rel="noopener">Official page &nearr;</a></div>`).join("")}</div>
-    <p class="muted" style="margin-bottom:0">Exam prices and formats change: see each official page. Track your plan for each exam on <button class="link-btn inline-link" data-trgo="ai|certs|">the Certs page</button>.</p></div>`;
+    <ul class="cert-list">${CLAUDE_CERTS.map((c) => `<li><div class="cert-body"><span class="t">${esc(c.name)}</span> <span class="chip">${esc(c.level)}</span><p class="muted">${esc(c.why)}</p></div>
+      <a class="btn small ghost" href="${c.link}" target="_blank" rel="noopener">Official page<span class="sr-only"> for ${esc(c.name)}</span> ${NEW_TAB}</a></li>`).join("")}</ul>
+    <p class="muted" style="margin-bottom:0">Exam prices and formats change: see each official page. Track your plan for each exam on <button class="link-btn inline-link" data-trgo="ai|certs|">the Certifications page</button>.</p></section>`;
 }
 
-function openAICard() {
+function openAICard(h = 3) {
   const O = OPENAI_LEARN;
-  return `<div class="card" id="openai-learn"><div class="section-head"><h3>OpenAI Academy</h3>${verifiedTag(O.verified)}</div>
-    <p class="muted" style="margin-top:0">OpenAI's own free courses, grouped into four tracks:</p>
-    <ul>${O.tracks.map(([t, d]) => `<li><b>${esc(t)}</b>: ${esc(d)}</li>`).join("")}</ul>
-    <p><b>OpenAI certifications:</b> <span class="badge due">${esc(O.certs)}</span> <span class="muted">We couldn't confirm a current, generally available OpenAI certification on OpenAI's own pages, so none is listed.</span></p>
-    <a class="btn small ghost" href="${O.url}" target="_blank" rel="noopener">OpenAI Academy courses &nearr;</a></div>`;
+  return `<section class="card" id="openai-learn" aria-labelledby="h-openai"><div class="section-head"><h${h} class="card-title" id="h-openai">OpenAI Academy</h${h}>${verifiedTag(O.verified)}</div>
+    <p class="muted" style="margin-top:0">OpenAI's own free courses, in four tracks by who they're for. Courses are listed in OpenAI's order.</p>
+    <div class="oa-grid">${O.tracks.map((tr) => {
+      const n = oaCourses(tr).length;
+      return `<section class="oa-track ${tr.pick ? "pick" : ""}" aria-labelledby="oa-${slugOf(tr.name)}">
+        <div class="oa-head"><h${h + 1} class="oa-name" id="oa-${slugOf(tr.name)}">${esc(tr.name)}</h${h + 1}><span class="chip">${esc(tr.audience)}</span></div>
+        ${tr.pick ? `<p class="oa-pick"><b>Best match for this course:</b> the API and Codex skills AI engineering roles ask for.</p>` : ""}
+        <p class="muted">${esc(tr.desc)}</p>
+        ${tr.groups.map(([label, cs]) => `${label ? `<div class="label oa-group">${esc(label)}</div>` : ""}
+          <ol class="oa-courses">${cs.map(([title, url, note]) => `<li><a href="${url}" target="_blank" rel="noopener">${esc(title)} ${NEW_TAB}</a>${note ? `<span class="muted">${esc(note)}</span>` : ""}</li>`).join("")}</ol>`).join("")}
+        <p class="oa-count muted">${n} course${n === 1 ? "" : "s"}</p></section>`;
+    }).join("")}</div>
+    <div class="callout oa-certs" role="note"><b>OpenAI certifications</b> <span class="badge due">${esc(O.certs)}</span>
+      <p>We couldn't confirm a current, generally available OpenAI certification on OpenAI's own pages, so none is listed. The courses above are learning only. For an exam to plan around, see the Claude certifications on <button class="link-btn inline-link" data-trgo="ai|certs|">the Certifications page</button>.</p></div>
+    <a class="btn small ghost" href="${O.url}" target="_blank" rel="noopener">All OpenAI Academy courses ${NEW_TAB}</a></section>`;
 }
 
-// The top-level page (#/claude).
+// The top-level page (#/claude): the sections in a reading column, a row of jumps to them, and beside them the
+// lessons in this app that the courses build on.
 function claudeView() {
-  return `<section class="card hero t-claude">
-      <div style="position:relative;z-index:1">
-        <div class="eyebrow">Official courses &amp; certifications</div>
-        <h1>Claude &amp; Anthropic</h1>
-        <p>Anthropic's own courses on using and building with Claude, in the order to take them, and the Claude certifications. Every link goes to the official page.</p>
-        <div class="row" style="margin-top:14px"><a class="btn primary" href="${CLAUDE.courses[0].url}" target="_blank" rel="noopener">Start with ${esc(CLAUDE.courses[0].title)} &nearr;</a>
-          <button class="btn" data-trgo="ai|certs|">Plan a certification</button></div>
-      </div>
-    </section>
-    ${claudeCoursesCard()}${claudeCertsSummary()}${openAICard()}`;
+  const jumps = [["claude-courses", "Anthropic courses"], ["claude-certs", "Claude certifications"], ["openai-learn", "OpenAI Academy"]];
+  const lessons = [...new Set(CLAUDE.courses.flatMap((c) => c.lessons))].map((tid) => topicById(AI, tid)).filter(Boolean);
+  return pageHead("Claude &amp; Anthropic", "Anthropic's own courses on using and building with Claude, in the order to take them, and the Claude certifications. Every link goes to the official page and opens in a new tab.", {
+      eyebrow: "Official courses &amp; certifications",
+      actions: `<a class="btn primary" href="${CLAUDE.courses[0].url}" target="_blank" rel="noopener">Start with ${esc(CLAUDE.courses[0].title)} ${NEW_TAB}</a><button class="btn" data-trgo="ai|certs|">Plan a certification</button>` })
+    + `<nav class="toc" aria-label="On this page"><span class="label" aria-hidden="true">On this page</span><ul>${jumps.map(([id, l]) => `<li><button class="toc-link" data-scrollto="${id}">${l}</button></li>`).join("")}</ul></nav>
+    <div class="doc-layout">
+      <div class="doc-main">${claudeCoursesCard(2)}${claudeCertsSummary(2)}${openAICard(2)}</div>
+      <aside class="doc-side" aria-labelledby="h-claude-lessons"><div class="card side-box"><h2 class="card-title" id="h-claude-lessons">Lessons these courses build on</h2>
+        <p class="muted">In Learn, with exercises that run in your browser.</p>
+        <ul class="side-links">${lessons.map((t) => `<li><button class="link-btn" ${goLearn("ai", t.id)}>${esc(t.title)}</button></li>`).join("")}</ul></div></aside>
+    </div>`;
 }
 
 // The same content inside Learn > Lessons (reference/claude-and-anthropic in the folder tree).
 function claudeLearnPage() {
-  return `<div class="label">Claude &amp; Anthropic</div><h2>Official courses &amp; certifications</h2>
+  return `<div class="label">Claude &amp; Anthropic</div><h1>Official courses &amp; certifications</h1>
     <p class="muted">Anthropic's courses pair well with the lessons here: each course lists the lessons it builds on.</p>
-    ${claudeCoursesCard()}${claudeCertsSummary()}${openAICard()}`;
+    ${claudeCoursesCard(2)}${claudeCertsSummary(2)}${openAICard(2)}`;
 }

@@ -106,16 +106,11 @@ function rlOverview(st) {
   const top = list.filter((r) => r.score).slice(0, 8), shownTop = top.length ? top : list.slice(0, 8);
   const maxScore = Math.max(1, ...list.map((r) => r.score));
   const gaps = list.filter((r) => levelOf(r.skill.id) !== "confident").slice(0, 5);
-  return roleSwitch(st) + `<section class="card hero t-roles">
-      <div style="position:relative;z-index:1">
-        <div class="eyebrow">${posts.length} posting${posts.length === 1 ? "" : "s"} · ${list.length} skills tracked</div>
-        <h1>${esc(roleName(st.role))}</h1>
-        <p>${esc(role ? role.tagline : "Every role combined: the skills employers ask for most across all the postings you've collected.")}.</p>
-        <div class="row" style="margin-top:14px"><button class="btn primary" data-nav-go="roles:skills">Rate your skills &rarr;</button><button class="btn" data-nav-go="roles:postings">View postings</button></div>
-      </div>
-      ${ring(ready, "ready")}
-    </section>
-    ${posts.length ? "" : `<div class="callout" style="margin-bottom:var(--gap)">No postings for this role yet, so the skills below are a <b>baseline</b> for the role. Add postings on the Postings tab and the demand numbers will come from real employers.</div>`}
+  return roleSwitch(st) + pageHead(esc(roleName(st.role)), `${esc(role ? role.tagline : "Every role combined: the skills employers ask for most across all the postings you've collected.")}.`, {
+      eyebrow: `${posts.length} posting${posts.length === 1 ? "" : "s"} · ${list.length} skills tracked`,
+      actions: `<button class="btn primary" data-nav-go="roles:skills">Rate your skills &rarr;</button><button class="btn" data-nav-go="roles:postings">View postings</button>`,
+      aside: ring(ready, "ready") })
+    + `${posts.length ? "" : `<div class="callout" style="margin-bottom:var(--gap)">No postings for this role yet, so the skills below are a <b>baseline</b> for the role. Add postings on the Postings tab and the demand numbers will come from real employers.</div>`}
     <div class="grid">
       <div class="card"><div class="label">Postings</div><div class="stat">${posts.length}</div><div class="muted">${allPostings().length} across all roles</div></div>
       <div class="card"><div class="label">Skills confident</div><div class="stat">${confident}<small> / ${list.length}</small></div><div class="bar"><i style="width:${(100 * confident / Math.max(1, list.length)) | 0}%"></i></div></div>
@@ -123,15 +118,15 @@ function rlOverview(st) {
       <div class="card"><div class="label">Readiness</div><div class="stat">${Math.round(ready * 100)}%</div><div class="muted">Weighted by posting demand</div></div>
     </div>
     <div class="cols-2">
-      <div class="card"><div class="section-head"><h3>${top.length ? "Most requested" : "Baseline skills"}</h3><button class="btn small ghost" data-nav-go="roles:skills">All skills &rarr;</button></div>
+      <div class="card"><div class="section-head"><h2 class="card-title">${top.length ? "Most requested" : "Baseline skills"}</h2><button class="btn small ghost" data-nav-go="roles:skills">All skills &rarr;</button></div>
         <div class="list">${shownTop.map((r) => `<div class="li"><div style="flex:1;min-width:0"><span class="t">${esc(r.skill.name)}</span>
           <div class="muted" style="font-size:.84rem">${demandText(r, posts.length)}</div>
           ${r.score ? `<div class="bar" style="margin-top:6px"><i style="width:${(100 * r.score / maxScore) | 0}%"></i></div>` : ""}</div>${levelBadge(r.skill.id)}</div>`).join("")}</div></div>
-      <div class="card"><div class="section-head"><h3>Biggest gaps</h3><span class="muted">Highest demand, not yet confident</span></div>
+      <div class="card"><div class="section-head"><h2 class="card-title">Biggest gaps</h2><span class="muted">Highest demand, not yet confident</span></div>
         <div class="list">${gaps.length ? gaps.map((r) => `<div class="li"><div style="flex:1;min-width:0"><span class="t">${esc(r.skill.name)}</span><div>${learnLinks(r.skill)}</div></div>${levelBadge(r.skill.id)}</div>`).join("")
           : `<div class="empty"><span class="big">&#127881;</span>You've marked every skill for this role as confident.</div>`}</div></div>
     </div>
-    <div class="card"><h3>How this section grows</h3>
+    <div class="card"><h2 class="card-title">How this section grows</h2>
       <p class="muted" style="margin-bottom:0">Each posting you add (on the Postings tab) or share in chat is filed under a role and mapped to the shared skill list: must-haves and core duties count as <b>required</b>, nice-to-haves as <b>preferred</b>. Demand and readiness update automatically, and new lessons are only added for real gaps. Rate yourself on the Skills tab; readiness weights each skill by how often employers ask for it.</p></div>`;
 }
 
@@ -159,7 +154,7 @@ function rlPostings(st) {
     (posts.length ? posts.map((p) => {
       const fit = postingFit(p), entry = trackerEntry(p);
       return `<div class="card posting" id="posting-${esc(p.id)}">
-        <div class="section-head"><div><h3>${esc(p.title)}</h3><div class="muted">${esc(p.company)}</div></div>
+        <div class="section-head"><div><h2 class="card-title">${esc(p.title)}</h2><div class="muted">${esc(p.company)}</div></div>
           <div class="row">${p.mine ? '<span class="badge plain">Added by you</span>' : ""}<span class="badge accent">${esc(roleById(p.role).name)}</span><span class="badge ${fit >= 0.7 ? "done" : fit >= 0.4 ? "due" : "plain"}">Fit ${Math.round(fit * 100)}%</span></div></div>
         <div class="row" style="margin-bottom:10px">${[p.location, p.mode, p.pay, p.seniority, `Added ${p.added}`].filter(Boolean).map((x) => `<span class="pill">${esc(x)}</span>`).join("")}</div>
         ${p.summary ? `<p>${esc(p.summary)}</p>` : ""}
@@ -173,7 +168,7 @@ function rlPostings(st) {
           ${p.link ? `<a class="btn small ghost" href="${esc(p.link)}" target="_blank" rel="noopener">${p.mine ? "Posting link" : "Employer careers page"} &nearr;</a>` : ""}
           ${p.mine ? `<span style="flex:1"></span><button class="btn small" data-rledit="${esc(p.id)}">Edit</button><button class="btn small danger" data-rldel="${esc(p.id)}">Delete</button>` : ""}</div></div>`;
     }).join("") : `<div class="card empty"><span class="big">&#128203;</span>No postings for ${esc(roleName(st.role))} yet. Add one above.</div>`) +
-    `<div class="card"><h3>Getting more out of a posting</h3><p class="muted" style="margin-bottom:0">Postings you add here are saved in this browser (and in Settings &rsaquo; Export). They can only use skills that already exist. If a posting asks for something the skill list doesn't cover, share it in Claude Code chat and new lessons, questions and projects will be written for the gap.</p></div>`;
+    `<div class="card"><h2 class="card-title">Getting more out of a posting</h2><p class="muted" style="margin-bottom:0">Postings you add here are saved in this browser (and in Settings &rsaquo; Export). They can only use skills that already exist. If a posting asks for something the skill list doesn't cover, share it in Claude Code chat and new lessons, questions and projects will be written for the gap.</p></div>`;
 }
 
 // ---------------- add / edit a posting ----------------
@@ -202,7 +197,7 @@ function rlForm(d) {
   const pick = (id) => (d.required.includes(id) ? "req" : d.preferred.includes(id) ? "pref" : "");
   const sug = d.sug || {};
   return `<div class="card rl-form" id="rl-form">
-    <div class="section-head"><h3 style="margin:0">${d.id ? "Edit posting" : "Add a posting"}</h3><button class="btn small ghost" data-rldcancel>Cancel</button></div>
+    <div class="section-head"><h2 class="card-title">${d.id ? "Edit posting" : "Add a posting"}</h2><button class="btn small ghost" data-rldcancel>Cancel</button></div>
     <div class="form-grid">
       <label class="fld"><span>Role <b class="M">*</b></span><select data-rld="role">${ROLE_DEFS.map((r) => `<option value="${r.id}" ${d.role === r.id ? "selected" : ""}>${esc(r.name)}</option>`).join("")}</select></label>
       ${field("company", "Company", "e.g. Shopify", true)}${field("title", "Job title", "e.g. AI Engineer", true)}${field("location", "Location", "e.g. City, region")}

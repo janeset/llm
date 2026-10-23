@@ -57,14 +57,15 @@ function hlPy(src) {
   }
   return out + esc(src.slice(at));
 }
-// Colours every code block in `root` once and frames it as an editor window; run output (pre with an id) stays plain.
+// Colours every code block in `root` once and frames it as an editor window with a Copy button; run output (pre with
+// an id) stays plain. Long lines scroll inside the block, never the page.
 function highlightCode(root) {
   root.querySelectorAll("pre:not([id]):not(.hl)").forEach((p) => {
     const src = p.textContent, lang = /^\s*[{[]/.test(src) ? "json" : /^\s*(\$ |pip |npm |npx |curl |git |cd |export |docker |uv )/m.test(src) && !/^\s*(def|import|from) /m.test(src) ? "shell" : "python";
     p.innerHTML = hlPy(src); p.classList.add("hl");
     const win = document.createElement("div");
     win.className = "code-win";
-    win.innerHTML = `<div class="code-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="lang">${lang}</span></div>`;
+    win.innerHTML = `<div class="code-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="lang" aria-hidden="true">${lang}</span><button type="button" class="code-copy" data-codecopy>Copy<span class="sr-only"> the ${lang} code</span></button></div>`;
     p.replaceWith(win); win.appendChild(p);
   });
 }
@@ -164,7 +165,7 @@ function ring(pct, label, size = 120) {
 function renderNav() {
   const sec = sectionOf(tab);
   // The current section is marked for screen readers too: "page" on the page itself, "true" for a section you're inside
-  document.querySelectorAll("#nav > button, #nav > .dd > button").forEach((b) => {
+  document.querySelectorAll("#nav > button, #nav > .dd > .dd-label").forEach((b) => {
     const on = (b.dataset.nav && b.dataset.nav === tab) || (!!b.dataset.track && b.dataset.track === sec) || ("jobs" in b.dataset && isJobs(tab));
     b.classList.toggle("active", on);
     if (on) b.setAttribute("aria-current", b.dataset.nav ? "page" : "true"); else b.removeAttribute("aria-current");
@@ -289,30 +290,29 @@ const crumbsHtml = () => {
 };
 
 // ---------------- home ----------------
-const levelPick = () => `<div class="card level-pick"><h3 style="margin-top:0">Where are you starting from?</h3>
-  <p class="muted">This sets the order of the lessons. You can change it any time in Settings.</p>
+// The level decides where Start here goes, so it sits right under the first action until it's picked.
+const levelPick = () => `<section class="card level-pick" aria-labelledby="h-level"><h2 class="card-title" id="h-level">Where are you starting from?</h2>
+  <p class="muted">This sets the order of the lessons and where Start here takes you. You can change it any time in Settings.</p>
   <div class="level-opts">
     <button class="level-opt" data-level="new"><b>New to AI</b><span class="muted">Start with AI from zero (what a model, training and an LLM are), then machine learning fundamentals. You need a little Python.</span></button>
     <button class="level-opt" data-level="code"><b>I know the AI basics</b><span class="muted">Skip AI from zero and start at machine learning fundamentals. AI from zero stays available as an option.</span></button>
-  </div>
-  <p class="muted" style="margin-bottom:0">New to Python? ${pyCourseLink()}.</p></div>`;
+  </div></section>`;
 
-// The beginner lessons on Home: first for new learners, marked optional for people who already code.
-function zeroHomeCard() {
-  const T = TRACKS.ai, opt = !beginnerLevel();
-  const part = (p) => {
-    const ls = zeroLessons(T, p), n = ls.filter((t) => topicDone(T, t)).length;
-    return `<div><div class="section-head"><h3 style="margin:0">${esc(ZERO_PARTS[p])}</h3><span class="muted">${n} / ${ls.length} lessons</span></div>
-      <div class="list">${ls.map((t, i) => `<div class="li"><div><span class="t">${i + 1}. ${esc(t.title)}</span><div class="muted">${exPassed("ai", t)} / ${t.exercises.length} exercises</div></div>
-        <div class="row">${topicDone(T, t) ? '<span class="badge done">Done</span>' : ""}<button class="btn small" ${goLearn("ai", t.id)}>Open</button></div></div>`).join("")}</div></div>`;
-  };
-  return `<div class="card zero-card ${opt ? "optional" : ""}"><div class="section-head"><h3 style="margin:0">${opt ? "AI from zero (optional)" : "AI from zero: the beginner lessons"}</h3></div>
-    <p class="muted">${opt ? "Skip these if you know the basics, or use them to fill gaps: what models, training and LLMs are, in plain language." : "No machine-learning background needed. Each lesson explains one idea step by step with a worked example, then gives you small exercises that run right here in the browser, each with an example, a hint and a model answer. Nothing needs an API key."}</p>
-    ${ZERO_PY_NOTE_HTML()}${part("ai")}</div>`;
+// A lesson as one row you can click: its number, title, exercise count and whether it's done.
+const lessonLink = (T, t, n) => `<li><button class="lesson-link" ${goLearn(T.id, t.id)}><span class="ll-n" aria-hidden="true">${n}</span>
+  <span class="ll-t">${esc(t.title)}<small>${topicCount(T, t)}</small></span>${topicDone(T, t) ? '<span class="badge done">Done</span>' : ""}<span class="ll-go" aria-hidden="true">&rarr;</span></button></li>`;
+
+// The beginner lessons on Home: first for new learners, marked optional for people who already know the basics.
+function zeroHomeSection() {
+  const T = TRACKS.ai, opt = !beginnerLevel(), ls = zeroLessons(T, "ai"), n = ls.filter((t) => topicDone(T, t)).length;
+  return `<section class="home-sec" aria-labelledby="h-zero"><div class="sec-head"><h2 id="h-zero">${opt ? "AI from zero (optional)" : "AI from zero: the beginner lessons"}</h2><p class="muted">${n} of ${ls.length} lessons done</p></div>
+    <p class="sec-lead">${opt ? "Skip these if you know the basics, or use them to fill gaps: what models, training and LLMs are, in plain language." : "No machine-learning background needed. Each lesson explains one idea step by step with a worked example, then gives you small exercises that run right here in the browser, each with an example, a hint and a model answer. Nothing needs an API key."}</p>
+    <ol class="card lesson-links ${opt ? "optional" : ""}">${ls.map((t, i) => lessonLink(T, t, i + 1)).join("")}</ol></section>`;
 }
 
 // The four parts of the site, as Home's entry points. Each says what kind of thing it is in words (the chip), not
-// only by its icon.
+// only by its icon. The card's heading is its button, stretched over the whole card, so the button's name is short
+// ("Learn") and the description is read as text after it.
 const HOME_ICONS = {
   learn: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2zM22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg>`,
   claude: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="6"/><path d="m8.5 14-1.5 8 5-3 5 3-1.5-8"/></svg>`,
@@ -322,9 +322,9 @@ const HOME_ICONS = {
 function homeEntries() {
   const T = TRACKS.ai, ls = T.groups.flatMap(([, ids]) => ids).map((tid) => topicById(T, tid));
   const exs = ls.reduce((n, t) => n + (t.exercises || []).length, 0), pls = IBM_PLAYLIST_GROUPS.reduce((n, g) => n + g.lists.length, 0);
-  const card = (icon, kind, title, desc, meta, attrs, go) => `<button class="entry" ${attrs}>
-      <span class="entry-top"><span class="entry-icon">${HOME_ICONS[icon]}</span><span class="chip">${kind}</span></span>
-      <span class="entry-t">${title}</span><span class="entry-d">${desc}</span><span class="entry-m">${meta}</span><span class="entry-go">${go} &rarr;</span></button>`;
+  const card = (icon, kind, title, desc, meta, attrs, go) => `<article class="entry">
+      <div class="entry-top"><span class="entry-icon">${HOME_ICONS[icon]}</span><span class="chip">${kind}</span></div>
+      <h3 class="entry-t"><button class="entry-link" ${attrs}>${title}</button></h3><p class="entry-d">${desc}</p><p class="entry-m">${meta}</p><p class="entry-go" aria-hidden="true">${go} &rarr;</p></article>`;
   return `<section class="home-sec" aria-labelledby="h-explore"><div class="sec-head"><h2 id="h-explore">What's here</h2><p class="muted">Four parts, each one click away in the top bar.</p></div>
     <div class="entry-grid">
       ${card("learn", "Course", "Learn", "The AI / LLM course: lessons with Python exercises checked in your browser, a build every week, IBM videos, a question bank and quizzes.", `${ls.length} lessons · ${exs} exercises · ${T.labs.length} projects`, `data-nav-go="ai:overview"`, "Open the course")}
@@ -346,34 +346,36 @@ function homeView() {
   const facts = started
     ? [["Lessons done", `${p.done}<small> / ${p.lessons}</small>`], ["Exercises passed", `${p.exDone}<small> / ${p.exTotal}</small>`], [T.labsName + " done", `${p.labs}<small> / ${T.labs.length}</small>`], ["Day streak", st], ["Done today", todayCount], ["Week", wk ? `${wk}<small> / ${T.weeks.length}</small>` : "-"]]
     : [["Weeks", T.weeks.length], ["Lessons", all.length], ["Exercises", all.reduce((n, t) => n + (t.exercises || []).length, 0)], [T.labsName, T.labs.length], ["Interview questions", T.questions.length], ["Quiz questions", T.quiz.length]];
-  return `<section class="home-hero">
+  return `<section class="home-hero" aria-labelledby="h-home">
       <div class="hh-copy">
-        <div class="eyebrow">${started ? `Welcome back${wk ? ` · Week ${wk} of ${T.weeks.length}` : ""}` : "For developers moving into AI engineering"}</div>
-        <h1>Learn to build with LLMs, then get hired for it.</h1>
+        <p class="eyebrow">${started ? `Welcome back${wk ? ` · Week ${wk} of ${T.weeks.length}` : ""}` : "For developers moving into AI engineering"}</p>
+        <h1 id="h-home">Learn to build with LLMs, then get hired for it.</h1>
         <p class="lead">A ${T.weeks.length}-week course with short lessons, Python exercises checked right in your browser and a build every week, plus Anthropic's official courses and interview practice. You need basic Python; no API key needed to start.</p>
         <div class="row hh-cta">${main}</div>
         <p class="hh-more"><button class="link-btn inline-link" data-trgo="ai|roadmap|">See the ${T.weeks.length}-week roadmap</button></p>
+        <p class="hh-py muted">New to Python? ${pyCourseLink()}.</p>
       </div>
       <div class="hh-facts" role="group" aria-labelledby="h-facts"><div class="label" id="h-facts">${started ? "Your progress" : "The course in numbers"}</div>
         <dl>${facts.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join("")}</dl></div>
     </section>
     ${S.level ? "" : levelPick()}
-    ${started ? `<div class="track-grid">${trackCard("ai")}${rolesHomeCard()}</div>` : ""}
+    ${started ? `<section class="home-sec" aria-labelledby="h-resume"><div class="sec-head"><h2 id="h-resume">Pick up where you left off</h2></div><div class="track-grid">${trackCard("ai")}${rolesHomeCard()}</div></section>` : ""}
     ${homeEntries()}
-    ${zeroHomeCard()}
+    ${zeroHomeSection()}
     <section class="home-sec" aria-labelledby="h-how"><div class="sec-head"><h2 id="h-how">How the course works</h2><p class="muted">About 8 hours a week. Employers want evidence: a deployed RAG or agent project with an eval harness beats any certificate.</p></div>
     <div class="cols-2">
-      <div class="card"><h3>A sustainable weekly rhythm</h3>
+      <div class="card"><h3 class="card-title">A sustainable weekly rhythm</h3>
         <table><tr><th>Day</th><th>Focus</th></tr>
           <tr><td>Mon / Wed</td><td>One lesson + its exercises (60 min)</td></tr>
           <tr><td>Tue / Thu</td><td>The week's build: build, evaluate, write it up (90 min)</td></tr>
           <tr><td>Fri</td><td>Interview questions out loud, or a mock interview (45 min)</td></tr>
           <tr><td>Sat</td><td>The week's third lesson, or its videos and a practice quiz (60 min)</td></tr>
           <tr><td>Sun</td><td>Finish the build's README, light review, plan the week (60-90 min)</td></tr></table></div>
-      <div class="card"><div class="section-head"><h3>Your ${T.weeks.length} weeks</h3><button class="btn small ghost" data-trgo="ai|roadmap|">Roadmap &rarr;</button></div><div class="list">
-        ${beginnerLevel() ? `<div class="li"><div><span class="t">Before week 1</span><div class="muted">AI from zero, at your own pace</div></div></div>` : ""}
-        ${T.weeks.map((w) => `<div class="li"><div><span class="t">Week ${w.n}</span><div class="muted">${esc(w.title)}</div></div>${w.n === wk ? '<span class="badge accent">This week</span>' : ""}</div>`).join("")}
-      </div>${s.start ? "" : `<p class="muted">Start the plan from the course overview to track your current week.</p>`}</div>
+      <div class="card"><div class="section-head"><h3 class="card-title">Your ${T.weeks.length} weeks</h3><button class="btn small ghost" data-trgo="ai|roadmap|">Roadmap &rarr;</button></div>
+        <ol class="week-list">
+          ${beginnerLevel() ? `<li><span class="wk-n">Before week 1</span><span>AI from zero, at your own pace</span></li>` : ""}
+          ${T.weeks.map((w) => `<li class="${w.n === wk ? "on" : ""}"><span class="wk-n">Week ${w.n}</span><span>${esc(w.title)}</span>${w.n === wk ? '<span class="badge accent">This week</span>' : ""}</li>`).join("")}
+        </ol>${s.start ? "" : `<p class="muted">Start the plan from the <button class="link-btn inline-link" data-nav-go="ai:overview">course overview</button> to track your current week.</p>`}</div>
     </div></section>`;
 }
 // A course's card on Home once you've started: progress ring, this week and the next lesson.
@@ -482,7 +484,8 @@ function treeView(T, st, sub) {
       tids.map((tid) => file(`ibm/ls:${TT.id}:${tid}`, fileName(topicById(TT, tid).title), `data-tribm="ls:${TT.id}:${tid}"`, m(ibmLessonVideos(TT, tid).length), topicById(TT, tid).title)), m(tids.length), g)), "", "Videos by lesson"),
     file("ibm/search", "search", `data-tribm="search"`, "", "Search all lesson videos")], "", "IBM Videos");
   const wk = trackWeek(id);
-  return treeShell(kit, fileName(T.name), T.name, m(wk ? `week ${wk}/${T.weeks.length}` : "not started"), [
+  // Titled "Learn" like the top bar and the breadcrumb; the root folder keeps the course's own name
+  return treeShell(kit, fileName(T.name), "Learn", m(wk ? `week ${wk}/${T.weeks.length}` : "not started"), [
     file("overview", "overview", `data-nav-go="${id}:overview"`), file("roadmap", "roadmap", `data-nav-go="${id}:roadmap"`, m(`${T.weeks.length} wk`)),
     learn, ibm, file("questions", "questions", `data-nav-go="${id}:questions"`, m(T.questions.length)), file("quiz", "quiz", `data-nav-go="${id}:quiz"`, m(T.quiz.length)),
     projects, file("certs", "certs", `data-nav-go="${id}:certs"`, m(T.certs.length))]);
@@ -555,38 +558,69 @@ function labRow(T, lab) {
     <div class="row"><span class="badge ${n === lab.steps.length ? "done" : ""}">${n}/${lab.steps.length} steps</span><button class="btn small" data-trgo="${T.id}|labs|${lab.id}">Open</button></div></div>`;
 }
 
+// A project as a row like lessonLink: what it is, its size and how many steps you've ticked.
+const ICON_BUILD = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7v10l8 4 8-4V7zM4 7l8 4 8-4M12 11v10"/></svg>`;
+const labLink = (T, lab) => {
+  const n = labSteps(T.id, lab), done = n === lab.steps.length;
+  return `<li><button class="lesson-link" data-trgo="${T.id}|labs|${lab.id}"><span class="ll-n ll-build">${ICON_BUILD}</span>
+    <span class="ll-t">${esc(lab.title)}<small>${esc(T.labsName.slice(0, -1))} · ${esc(lab.level)} · ${esc(lab.time)} · ${n}/${lab.steps.length} steps</small></span>${done ? '<span class="badge done">Done</span>' : ""}<span class="ll-go" aria-hidden="true">&rarr;</span></button></li>`;
+};
+// "Week 1", "Weeks 1-2", "Weeks 3, 5": the weeks of the plan that teach a module's lessons
+function weeksOf(T, tids) {
+  const ns = T.weeks.filter((w) => w.topics.some((t) => tids.includes(t))).map((w) => w.n);
+  if (!ns.length) return "";
+  if (ns.length === 1) return `Week ${ns[0]}`;
+  return ns[ns.length - 1] - ns[0] + 1 === ns.length ? `Weeks ${ns[0]}-${ns[ns.length - 1]}` : `Weeks ${ns.join(", ")}`;
+}
+
+// Learn's front page: what the course is and where to start, how its modules map onto the weeks, this week's work,
+// then practice and reference. Progress numbers appear once there's progress to show.
 function trOverview(T, st) {
   const id = T.id, p = trackProgress(id), wk = trackWeek(id), w = wk ? T.weeks[wk - 1] : T.weeks[0];
-  const nextTopic = pathNext(T);
-  return `<section class="card hero t-${id}">
-      <div style="position:relative;z-index:1">
-        <div class="eyebrow">${wk ? `Week ${wk} of ${T.weeks.length}` : "Not started yet"}</div>
-        <h1>${esc(T.name)}</h1>
-        <p>${esc(T.tagline)}. ${wk ? `This week: <b style="color:var(--text)">${esc(w.title)}</b>.` : `${T.weeks.length} weeks, a build every week, about 8 hours a week.`}</p>
-        <div class="row" style="margin-top:14px">
-          ${nextTopic ? `<button class="btn primary" ${goLearn(id, nextTopic.id)}>${anyPassed() ? "Continue" : "Start here"}: ${esc(nextTopic.title)} &rarr;</button>` : `<button class="btn primary" data-trgo="${id}|quiz|">Take a quiz &rarr;</button>`}
-          ${st.start ? "" : `<button class="btn" data-trstart="${id}">Start the ${T.weeks.length}-week plan</button>`}
-          <button class="btn" data-trgo="${id}|roadmap|">View roadmap</button>
-        </div>
-      </div>
-      ${ring(p.pct, `${p.done + p.labs}/${p.lessons + T.labs.length} done`)}
-    </section>
-    <div class="grid">
+  const nextTopic = pathNext(T), lessons = T.groups.flatMap(([, ids]) => ids);
+  const active = st.start || p.exDone || p.done || p.labs || p.answered || p.got;
+  const actions = (nextTopic ? `<button class="btn primary" ${goLearn(id, nextTopic.id)}>${anyPassed() ? "Continue" : "Start here"}: ${esc(nextTopic.title)} &rarr;</button>` : `<button class="btn primary" data-trgo="${id}|quiz|">Take a quiz &rarr;</button>`)
+    + `<button class="btn" data-trgo="${id}|roadmap|">View the roadmap</button>`;
+  // Starting the plan only sets today as week 1; the lessons are open either way
+  const plan = st.start ? `<p class="plan-note muted">Week ${wk} of ${T.weeks.length}, started ${esc(st.start)}. <button class="link-btn inline-link" data-nav-go="settings">Change the start date in Settings</button>.</p>`
+    : `<div class="plan-note"><button class="btn small" data-trstart="${id}">Start the plan today</button><span class="muted">Sets today as week 1, so this page can show this week's lessons and build. Every lesson is open either way.</span></div>`;
+  const modules = T.groups.map(([g, tids]) => {
+    const ts = tids.map((tid) => topicById(T, tid)), done = ts.filter((t) => topicDone(T, t)).length, open = ts.find((t) => !topicDone(T, t)) || ts[0];
+    const zero = ts.every((t) => t.zero);
+    return `<li><button class="lesson-link module-link" ${goLearn(id, open.id)}><span class="ml-when">${zero ? "Before week 1" : weeksOf(T, tids)}</span>
+      <span class="ll-t">${esc(g)}<small>${ts.length} lesson${ts.length === 1 ? "" : "s"}${done ? ` · ${done} done` : ""}${zero ? (beginnerLevel() ? " · For people new to AI" : " · Optional: you know the basics") : ""}</small></span>
+      ${done === ts.length ? '<span class="badge done">Done</span>' : zero ? `<span class="chip">${beginnerLevel() ? "Beginner" : "Optional"}</span>` : ""}<span class="ll-go" aria-hidden="true">&rarr;</span></button></li>`;
+  }).join("");
+  const tabs = Object.fromEntries(TRACK_TABS(id)), plCount = IBM_PLAYLIST_GROUPS.reduce((n, g) => n + g.lists.length, 0);
+  const ref = (attrs, title, desc) => `<button class="ref-link" ${attrs}><span class="ref-t">${title}</span><span class="muted">${desc}</span></button>`;
+  return pageHead("The AI / LLM course", `${esc(T.tagline)}. ${T.weeks.length} weeks and ${lessons.length} lessons in ${T.groups.length} modules, with Python exercises checked in your browser and a build every week. About 8 hours a week.`,
+      { eyebrow: wk ? `Week ${wk} of ${T.weeks.length}` : "", actions: actions + plan, aside: active ? ring(p.pct, `${p.done + p.labs}/${p.lessons + T.labs.length} done`) : "" })
+    + (active ? `<div class="grid">
       <div class="card"><div class="label">Lessons completed</div><div class="stat">${p.done}<small> / ${p.lessons}</small></div><div class="bar"><i style="width:${(100 * p.done / p.lessons) | 0}%"></i></div><div class="muted">${p.exDone}/${p.exTotal} exercises passed</div></div>
       <div class="card"><div class="label">Questions mastered</div><div class="stat">${p.got}<small> / ${T.questions.length}</small></div><div class="muted">Interview question bank</div></div>
       <div class="card"><div class="label">Quiz accuracy</div><div class="stat">${p.answered ? Math.round(100 * p.correct / p.answered) + "%" : "-"}</div><div class="muted">${p.answered} answered</div></div>
       <div class="card"><div class="label">${esc(T.labsName)} completed</div><div class="stat">${p.labs}<small> / ${T.labs.length}</small></div><div class="muted">Self-reported: you tick the steps</div></div>
-    </div>
-    <div class="cols-2">
-      <div class="card"><div class="section-head"><h3>${wk ? "This week" : "Week 1 preview"} · ${esc(w.title)}</h3></div>
+    </div>` : "")
+    + `<section class="page-sec" aria-labelledby="h-structure"><div class="sec-head"><h2 id="h-structure">How the course is organised</h2><p class="muted">Modules in order, with the weeks of the plan that teach them. Each one opens on its first unfinished lesson.</p></div>
+      <ol class="card lesson-links module-links">${modules}</ol></section>
+    <div class="cols-2 page-sec">
+      <section class="card" aria-labelledby="h-week"><h2 class="card-title" id="h-week">${wk ? "This week" : "Week 1 preview"} · ${esc(w.title)}</h2>
         <p class="muted">${esc(w.goal)}</p>
         ${!wk && beginnerLevel() && zeroLessons(T).some((t) => !topicDone(T, t)) ? `<p class="muted">New to AI? Do <button class="link-btn inline-link" ${goLearn(id, zeroLessons(T)[0].id)}>AI from zero</button> first.</p>` : ""}
-        <div class="list">${w.topics.map((t) => topicRow(T, st, t)).join("")}${w.labs.map((l) => labRow(T, T.labs.find((x) => x.id === l))).join("")}
-          ${!w.topics.length && !w.labs.length ? `<div class="li"><span>Review week: quizzes and the question bank.</span><button class="btn small" data-trgo="${id}|quiz|">Quiz</button></div>` : ""}</div></div>
-      <div class="card"><div class="section-head"><h3>Certifications</h3><button class="btn small ghost" data-trgo="${id}|certs|">All certs &rarr;</button></div>
-        <div class="list">${T.certs.map((c) => `<div class="li"><div><span class="t">${esc(c.code)}</span><div class="muted">${esc(c.name)}</div></div><span class="badge ${st.certs[c.id]?.status === "Passed" ? "done" : "plain"}">${esc(st.certs[c.id]?.status || "Not planned")}</span></div>`).join("")}</div></div>
+        ${w.topics.length ? `<ol class="lesson-links">${w.topics.map((tid, i) => lessonLink(T, topicById(T, tid), i + 1)).join("")}</ol>` : ""}
+        ${w.labs.length ? `<h3 class="label week-build">The week's build</h3><ul class="lesson-links">${w.labs.map((l) => labLink(T, T.labs.find((x) => x.id === l))).join("")}</ul>` : ""}
+        ${!w.topics.length && !w.labs.length ? `<div class="li"><span>Review week: quizzes and the question bank.</span><button class="btn small" data-trgo="${id}|quiz|">Quiz</button></div>` : ""}</section>
+      <section class="card" aria-labelledby="h-certs"><div class="section-head"><h2 class="card-title" id="h-certs">Certifications</h2><button class="btn small ghost" data-trgo="${id}|certs|">All certs &rarr;</button></div>
+        <div class="list">${T.certs.map((c) => `<div class="li"><div><span class="t">${esc(c.code)}</span><div class="muted">${esc(c.name)}</div></div><span class="badge ${st.certs[c.id]?.status === "Passed" ? "done" : "plain"}">${esc(st.certs[c.id]?.status || "Not planned")}</span></div>`).join("")}</div></section>
     </div>
-    <div class="card"><div class="section-head"><h3>Full courses</h3><span class="row">${verifiedTag(VIDEOS_VERIFIED)}${channelLink(T, "Recommended channel: ")}</span></div>${vids(T.videos.courses)}</div>`;
+    <section class="page-sec" aria-labelledby="h-practice"><div class="sec-head"><h2 id="h-practice">Practice and reference</h2><p class="muted">Use these alongside the lessons.</p></div>
+      <div class="ref-grid">
+        ${ref(`data-trgo="${id}|questions|"`, "Interview questions", `${T.questions.length} questions with model answers, to say out loud`)}
+        ${ref(`data-trgo="${id}|quiz|"`, "Practice quiz", `${T.quiz.length} multiple-choice questions, by topic or exam`)}
+        ${tabs.ibm ? ref(`data-tribm="overview"`, esc(tabs.ibm), `${plCount} IBM Technology playlists, and videos for each lesson`) : ""}
+        ${ref(`data-nav-go="claude"`, "Claude &amp; Anthropic", `Anthropic's official courses and the Claude certifications`)}
+      </div></section>
+    <section class="card" aria-labelledby="h-courses"><div class="section-head"><h2 class="card-title" id="h-courses">Full courses</h2><span class="row">${verifiedTag(VIDEOS_VERIFIED)}${channelLink(T, "Recommended channel: ")}</span></div>${vids(T.videos.courses)}</section>`;
 }
 
 function trRoadmap(T, st) {
@@ -636,7 +670,7 @@ function trLearn(T, st) {
     ${T.glossary && T.glossary.length ? `<button class="side-i ${sel === "glossary" ? "active" : ""}" data-trsel="${id}|glossary"><span class="lbl">Glossary</span><span class="muted lbl">${T.glossary.length}</span></button>` : ""}
     ${T.videos.courses && T.videos.courses.length ? `<button class="side-i ${sel === "courses" ? "active" : ""}" data-trsel="${id}|courses"><span class="lbl">Full courses</span></button>` : ""}
     ${id === "ai" ? `<button class="side-i ${sel === "claude" ? "active" : ""}" data-trsel="${id}|claude"><span class="lbl">Claude &amp; Anthropic</span></button>` : ""}`;
-  const body = sel === "courses" && T.videos.courses ? `<h2>Full courses</h2><p class="muted">Long-form videos to watch in chunks alongside the plan. ${verifiedTag(VIDEOS_VERIFIED)}</p><div class="card">${vids(T.videos.courses)}</div>`
+  const body = sel === "courses" && T.videos.courses ? `<h1>Full courses</h1><p class="muted">Long-form videos to watch in chunks alongside the plan. ${verifiedTag(VIDEOS_VERIFIED)}</p><div class="card">${vids(T.videos.courses)}</div>`
     : sel === "glossary" && T.glossary ? trGlossary(T) : sel === "claude" && id === "ai" ? claudeLearnPage() : topicById(T, sel) ? trTopic(T, st, sel) : trMissing(T, sel);
   // In the folder tree the lessons are already listed on the left
   if (treeMode(id)) return body;
@@ -647,7 +681,7 @@ function trLearn(T, st) {
 // say so and offer the next lesson on the path instead of silently opening another page.
 function trMissing(T, sel) {
   const to = pathNext(T) || learnPath(T)[0];
-  return `<div class="label">Learn</div><h2>Lesson not found</h2>
+  return `<div class="label">Learn</div><h1>Lesson not found</h1>
     <div class="card"><p>There's no lesson at <code>${esc(sel)}</code>. The link may be mistyped or from an older version of the app.</p>
       <p class="muted">Lessons aren't locked: you can open any of them from the sidebar.</p>
       <div class="row"><button class="btn primary" data-trsel="${T.id}|${to.id}">Go to ${esc(to.title)} &rarr;</button></div></div>`;
@@ -656,7 +690,7 @@ function trMissing(T, sel) {
 function trGlossary(T) {
   const q = ((views._trgl = views._trgl || {})[T.id] || "").toLowerCase();
   const list = T.glossary.filter(([term, def]) => !q || term.toLowerCase().includes(q) || def.toLowerCase().includes(q));
-  return `<h2>Glossary <span class="muted">${list.length}</span></h2><p class="muted">Key terms in one line each. Great for a last review before an interview or exam.</p>
+  return `<h1>Glossary <span class="muted">${list.length}</span></h1><p class="muted">Key terms in one line each. Great for a last review before an interview or exam.</p>
     <div class="card toolbar"><label class="search">${ICON_SEARCH}<input data-trgl="${T.id}" placeholder="Search terms..." value="${esc(views._trgl[T.id] || "")}" autocomplete="off"></label></div>
     <div class="card"><dl class="gloss">${list.map(([term, def]) => `<dt>${esc(term)}</dt><dd>${esc(def)}</dd>`).join("") || '<p class="muted">No matching terms.</p>'}</dl></div>`;
 }
@@ -711,21 +745,23 @@ function trTopic(T, st, tid) {
   const exs = t.exercises || [], checks = topicChecks(T, tid);
   const status = exs.length ? `${exPassed(id, t)} / ${exs.length} exercises passed. Your code runs against tests right here; Python loads on first run. Pass every exercise to complete this lesson.`
     : checks.length ? `${checks.filter((q) => st.quiz[q.id] === true).length} / ${checks.length} checks answered correctly. Answer every check correctly to complete this lesson.` : "";
-  const example = t.example ? `<h3>Try it</h3><pre>${esc(t.example)}</pre>
+  // Lessons are written with h3 section headings; under the lesson's h1 they're the page's sections, so they render as h2
+  const body = t.body.replace(/<(\/?)h3\b/g, "<$1h2");
+  const example = t.example ? `<h2>Try it</h2><pre>${esc(t.example)}</pre>
     <div class="row"><button class="btn small" data-trrun="${id}|${tid}">Run this example</button></div><pre id="trrun-${id}-${tid}" class="muted" hidden></pre>` : "";
-  const codes = (t.code || []).map((c, k) => `<div class="card"><div class="section-head"><h3>${esc(c.label)}</h3><button class="btn small" data-trcopy="${id}|${tid}|${k}">Copy</button></div>
+  const codes = (t.code || []).map((c) => `<div class="card"><div class="section-head"><h2 class="card-title">${esc(c.label)}</h2></div>
     <p class="muted code-note">For reference: this runs on your own computer with the tools installed${/anthropic|client\./.test(c.code) ? " and an API key (a paid account)" : ""}. You don't need to run it to complete this lesson.</p><pre>${esc(c.code)}</pre></div>`).join("");
   const vlist = (T.videos[tid] || []).concat(t.videos || []);
   const hasQ = T.questions.some((q) => q.topic === tid), hasQuiz = T.quiz.some((q) => q.topic === tid);
   // The module name is in the breadcrumb above the page in the folder tree layout
-  return `${treeMode(id) ? "" : `<div class="label lesson-crumb">${esc(group)}</div>`}<h2>${esc(t.title)}</h2>${t.zero ? zeroPos(T, t) : ""}
+  return `${treeMode(id) ? "" : `<div class="label lesson-crumb">${esc(group)}</div>`}<h1>${esc(t.title)}</h1>${t.zero ? zeroPos(T, t) : ""}
     ${status ? `<p class="muted">${status}</p>` : ""}
-    <div class="card lesson-body">${t.why ? `<p class="callout why"><b>Why it matters on the job:</b> ${t.why}</p>` : ""}${t.body}${example}</div>${codes}
-    ${exs.length ? `<div class="label" style="margin:6px 0 8px">Exercises (run in your browser)</div>${exs.map((ex, j) => exerciseCard(id, tid, ex, j, st)).join("")}` : ""}
-    ${checks.length ? `<div class="label" style="margin:6px 0 8px">Checks: answer each one correctly to complete this lesson</div>${checks.map((q, n) => checkCard(T, st, q, n + 1)).join("")}` : ""}
-    ${t.cards && t.cards.length ? `<div class="card"><h3>Flash cards</h3><p class="muted">Say your answer, then reveal it. These are for review and don't affect completion.</p>${t.cards.map(([q, a], k) => { const key = `${id}:${tid}:${k}`; return `<div class="flash"><div class="row between"><b>${esc(q)}</b>
+    <div class="card lesson-body">${t.why ? `<p class="callout why"><b>Why it matters on the job:</b> ${t.why}</p>` : ""}${body}${example}</div>${codes}
+    ${exs.length ? `<h2 class="label" style="margin:6px 0 8px">Exercises (run in your browser)</h2>${exs.map((ex, j) => exerciseCard(id, tid, ex, j, st)).join("")}` : ""}
+    ${checks.length ? `<h2 class="label" style="margin:6px 0 8px">Checks: answer each one correctly to complete this lesson</h2>${checks.map((q, n) => checkCard(T, st, q, n + 1)).join("")}` : ""}
+    ${t.cards && t.cards.length ? `<div class="card"><h2 class="card-title">Flash cards</h2><p class="muted">Say your answer, then reveal it. These are for review and don't affect completion.</p>${t.cards.map(([q, a], k) => { const key = `${id}:${tid}:${k}`; return `<div class="flash"><div class="row between"><b>${esc(q)}</b>
       <button class="btn small ${shown[key] ? "ghost" : ""}" data-trq="${key}">${shown[key] ? "Hide" : "Show answer"}</button></div>${shown[key] ? `<p class="flash-a">${esc(a)}</p>` : ""}</div>`; }).join("")}</div>` : ""}
-    <div class="card"><div class="section-head"><h3>Videos</h3><span class="row"><a class="btn small" href="${yt(t.yt || t.title + " LLM explained")}" target="_blank" rel="noopener">More videos &nearr;</a>${t.zero ? "" : channelLink(T)}</span></div>
+    <div class="card"><div class="section-head"><h2 class="card-title">Videos</h2><span class="row"><a class="btn small" href="${yt(t.yt || t.title + " LLM explained")}" target="_blank" rel="noopener">More videos &nearr;</a>${t.zero ? "" : channelLink(T)}</span></div>
       ${vlist.length ? vids(vlist) : `<p class="muted">No verified video for this lesson yet; the search link finds popular ones.</p>`}</div>
     ${hasQ || hasQuiz ? `<div class="row" style="margin-bottom:var(--gap)">${hasQ ? `<button class="btn ghost" data-trgo="${id}|questions|${tid}">Interview questions on this</button>` : ""}${hasQuiz ? `<button class="btn ghost" data-trgo="${id}|quiz|${tid}">Quiz on this</button>` : ""}</div>` : ""}
     ${trNav(T, tid)}`;
@@ -788,7 +824,7 @@ function trLabs(T, st) {
     T.labs.map((l) => {
       const n = labSteps(id, l), all = n === l.steps.length;
       return `<div class="card lab ${focus === l.id ? "focus" : ""}" id="lab-${l.id}">
-        <div class="section-head"><h3>${esc(l.title)}</h3><span class="badge ${all ? "done" : ""}">${n}/${l.steps.length} steps</span></div>
+        <div class="section-head"><h2 class="card-title">${esc(l.title)}</h2><span class="badge ${all ? "done" : ""}">${n}/${l.steps.length} steps</span></div>
         <div class="row" style="margin-bottom:10px"><span class="pill">${esc(l.level)}</span><span class="pill">${esc(l.time)}</span><span class="pill">Self-reported</span>${l.stack.map((s) => `<span class="tag">${esc(s)}</span>`).join("")}</div>
         <p>${esc(l.goal)}</p>
         ${l.before ? `<div class="callout before"><b>Before you start</b><ul>${l.before.map((b) => `<li>${md(b)}</li>`).join("")}</ul></div>` : ""}
@@ -810,14 +846,14 @@ function trCerts(T, st) {
     `<div class="track-grid" style="margin-top:var(--gap)">${T.certs.map((c) => {
       const s = st.certs[c.id] || {};
       return `<div class="card cert"><div class="section-head"><span class="badge accent">${esc(c.provider)} · ${esc(c.level)}</span><b class="cert-code">${esc(c.code)}</b></div>
-        <h3 style="margin-top:6px">${esc(c.name)}</h3><p class="muted">${esc(c.why)}</p>${c.verified ? `<p style="margin:0">${verifiedTag(c.verified)}</p>` : ""}
+        <h2 class="card-title" style="margin-top:6px">${esc(c.name)}</h2><p class="muted">${esc(c.why)}</p>${c.verified ? `<p style="margin:0">${verifiedTag(c.verified)}</p>` : ""}
         <div class="label" style="margin-top:10px">Related lessons</div><div>${c.topics.map((tid) => `<button class="tag tag-btn" ${goLearn(id, tid)}>${esc(topicById(T, tid).title)}</button>`).join("")}</div>
         <div class="row" style="margin-top:12px"><select data-trcert="${id}|${c.id}">${CERT_STATUSES.map((v) => `<option ${v === (s.status || "Not planned") ? "selected" : ""}>${v}</option>`).join("")}</select>
           <input type="date" data-trcertdate="${id}|${c.id}" value="${esc(s.date || "")}" title="Exam date"></div>
         <div class="row" style="margin-top:12px">${T.quiz.some((q) => q.tags.includes(c.tag)) ? `<button class="btn small primary" data-tqtag="${id}|${c.tag}">Practice questions</button>` : ""}
-          <a class="btn small ghost" href="${c.link}" target="_blank" rel="noopener">Official page &nearr;</a></div></div>`;
+          <a class="btn small ghost" href="${c.link}" target="_blank" rel="noopener">Official page<span class="sr-only"> for ${esc(c.name)}</span> ${NEW_TAB}</a></div></div>`;
     }).join("")}</div>
-    ${T.id === "ai" ? claudeCoursesCard() + openAICard() : ""}`;
+    ${T.id === "ai" ? claudeCoursesCard(2) + openAICard(2) : ""}`;
 }
 
 // ---------------- running exercises and examples ----------------
@@ -827,21 +863,24 @@ async function runTrackExercise(id, tid, k) {
   const code = document.querySelector(`[data-trcode="${id}|${tid}|${k}"]`).value;
   const res = document.getElementById(rid);
   // The untouched starter is only a placeholder (or, for a debug exercise, the bug): don't run it, say what to do instead.
+  // Each outcome is also announced: the result box changes without moving focus, so screen readers wouldn't hear it
   if (code.trim() === ex.starter.trim()) {
     res.style.display = "block"; res.className = "M";
     res.textContent = ex.debug ? "Fix the bug in the code first, then press Run tests." : "Replace the placeholder (pass) with your code first, then press Run tests.";
-    return;
+    return announce(res.textContent);
   }
   S.code["tx:" + key] = code; save();
   res.style.display = "block"; res.className = "muted"; res.textContent = pyStatus();
+  announce(res.textContent);
   const { out, err, loadErr } = await execPy(code + "\n\n" + ex.tests, true);
-  if (loadErr) { res.textContent = err; res.className = "M"; return; }
-  if (err) { res.textContent = "Not yet:\n" + err + (out ? "\n\nOutput:\n" + out : "") + (ex.hint ? "\n\nStuck? Open the hint below." : ""); res.className = "M"; return; }
+  if (loadErr) { res.textContent = err; res.className = "M"; return announce(err); }
+  if (err) { res.textContent = "Not yet:\n" + err + (out ? "\n\nOutput:\n" + out : "") + (ex.hint ? "\n\nStuck? Open the hint below." : ""); res.className = "M"; return announce(`Not yet: ${err}`); }
   const st = trState(id);
   if (!st.ex[key]) bump();
   st.ex[key] = true; save();
   rerender();
   const r = document.getElementById(rid); r.style.display = "block"; r.className = "s-solved"; r.textContent = "All tests passed!" + (out ? "\n\nOutput:\n" + out : "");
+  announce("All tests passed.");
 }
 async function runTrackExample(id, tid) {
   const t = topicById(TRACKS[id], tid), box = document.getElementById(`trrun-${id}-${tid}`);
@@ -861,7 +900,16 @@ document.addEventListener("click", (e) => {
   if ((b = el("[data-treeall]"))) { S.tree = Object.fromEntries(treePaths.map((p) => [p, b.dataset.treeall === "open"])); save(); return rerender(); }
   if ((b = el("[data-treemob]"))) { views._treeMob = !views._treeMob; return rerender(); }
   if ((b = el("[data-tribm]"))) { trState("ai").ibmSel = b.dataset.tribm; save(); return go("ai:ibm"); }
-  if ((b = el("[data-level]"))) { S.level = b.dataset.level; save(); return rerender(); }
+  if ((b = el("[data-level]"))) {
+    S.level = b.dataset.level; save(); rerender();
+    // On Home the choice disappears once made: focus moves to Start here, whose lesson may just have changed
+    if (b.classList.contains("level-opt")) {
+      const next = pathNext(TRACKS.ai);
+      $("#view .hh-cta .btn")?.focus();
+      announce(`Lesson order set. ${next ? `Start here opens ${next.title}.` : ""}`);
+    }
+    return;
+  }
   if ((b = el("[data-track-go]"))) { const k = b.dataset.trackGo; return go(S.lastTab?.[k] || defaultTab(k)); }
   if ((b = el("[data-nav-go]"))) return go(b.dataset.navGo);
   if ((b = el("[data-trstart]"))) { const st = trState(b.dataset.trstart); st.start = st.start || today(); save(); return go(b.dataset.trstart + ":overview"); }
@@ -893,13 +941,10 @@ document.addEventListener("click", (e) => {
     return rerender();
   }
   if ((b = el("[data-trckre]"))) { delete (views._trck || {})[b.dataset.trckre]; return rerender(); }
-  if ((b = el("[data-trcopy]"))) {
-    const [id, tid, k] = b.dataset.trcopy.split("|");
-    return navigator.clipboard?.writeText(topicById(TRACKS[id], tid).code[+k].code).then(() => { b.textContent = "Copied!"; }, () => {});
-  }
+  if ((b = el("[data-codecopy]"))) return copyText(b.closest(".code-win").querySelector("pre").textContent, b);
   if ((b = el("[data-trres]"))) {
     const [id, lid] = b.dataset.trres.split("|");
-    return navigator.clipboard?.writeText(TRACKS[id].labs.find((l) => l.id === lid).resume).then(() => { b.textContent = "Copied!"; }, () => {});
+    return copyText(TRACKS[id].labs.find((l) => l.id === lid).resume, b);
   }
   if ((b = el("[data-tq]"))) {
     const [id, qid, k] = b.dataset.tq.split("|"), q = TRACKS[id].quiz.find((x) => x.id === qid), st = trState(id);

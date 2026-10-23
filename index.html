@@ -33,13 +33,13 @@
       <svg class="logo" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="8" fill="var(--accent)"/><g transform="translate(4 4) scale(.833)" fill="none" stroke="var(--accent-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></g></svg>
       <span class="brand-name" aria-hidden="true">AI Prep</span><span class="brand-desc" aria-hidden="true">LLM engineering</span>
     </button>
-    <!-- Content sections. Learn and Jobs open menus on hover or keyboard focus; the single keys are in data-key
-         (Learn also answers to A, its old letter). -->
+    <!-- Content sections. Learn and Jobs go to their section; the chevron beside each opens its menu (so does
+         hovering with a mouse, or Down arrow). The single keys are in data-key (Learn also answers to A, its old letter). -->
     <nav id="nav" aria-label="Main">
       <button title="Home (H)" data-nav="home" data-key="h" class="active">Home</button>
-      <div class="dd"><button title="Learn: the AI / LLM course (L)" data-track="ai" data-key="l a" aria-haspopup="true" aria-expanded="false">Learn <svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button><div class="dd-panel" data-menu="ai"></div></div>
+      <div class="dd"><button class="dd-label" title="Learn: the AI / LLM course (L)" data-track="ai" data-key="l a">Learn</button><button class="dd-toggle" aria-expanded="false" aria-controls="menu-ai" aria-label="Learn menu" title="Show the Learn menu"><svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button><div class="dd-panel" id="menu-ai" data-menu="ai"></div></div>
       <button title="Claude &amp; Anthropic: official courses and certifications (C)" data-nav="claude" data-key="c">Claude &amp; Anthropic</button>
-      <div class="dd"><button title="Jobs: interview, roles and companies (J)" data-jobs data-key="j" aria-haspopup="true" aria-expanded="false">Jobs <svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button><div class="dd-panel" data-menu="jobs"></div></div>
+      <div class="dd"><button class="dd-label" title="Jobs: interview, roles and companies (J)" data-jobs data-key="j">Jobs</button><button class="dd-toggle" aria-expanded="false" aria-controls="menu-jobs" aria-label="Jobs menu" title="Show the Jobs menu"><svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5"/></svg></button><div class="dd-panel" id="menu-jobs" data-menu="jobs"></div></div>
     </nav>
     <!-- Tools (search, console), then preferences (theme, settings), then the one primary action -->
     <div class="top-r">
@@ -56,6 +56,8 @@
   <nav id="subnav" class="subnav" aria-label="Section" hidden></nav>
 </header>
 <main id="view" tabindex="-1"></main>
+<!-- Short status messages for screen readers ("Copied", "Round 2 of 4"); announce() in app.js -->
+<div id="sr-status" class="sr-only" role="status" aria-live="polite"></div>
 <script src="tracks.js"></script>
 <script src="ai.js"></script>
 <script src="ai-more.js"></script>

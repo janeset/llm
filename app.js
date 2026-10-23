@@ -69,8 +69,14 @@ if (darkQuery) darkQuery.addEventListener("change", () => { if ((S.theme || DEFA
 
 // ---------- helpers ----------
 const ICON_SEARCH = `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`;
-const pageHead = (title, sub = "") => `<div class="page-head"><h2>${title}</h2>${sub ? `<p class="muted">${sub}</p>` : ""}</div>`;
+// A page's header: the title (the page's one h1) and a line on what the page is for. Optional: an eyebrow above the
+// title, a row of actions under it, and an aside on the right (a progress ring).
+const pageHead = (title, sub = "", o = {}) => `<header class="page-head"><div class="page-head-main">
+  ${o.eyebrow ? `<p class="eyebrow">${o.eyebrow}</p>` : ""}<h1>${title}</h1>${sub ? `<p class="page-sub">${sub}</p>` : ""}
+  ${o.actions ? `<div class="row page-actions">${o.actions}</div>` : ""}</div>${o.aside ? `<div class="page-head-aside">${o.aside}</div>` : ""}</header>`;
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// After the text of a link that opens in a new tab: the arrow for the eye, the words for screen readers
+const NEW_TAB = `<span aria-hidden="true">&nearr;</span><span class="sr-only"> (opens in a new tab)</span>`;
 const $ = (sel, root = document) => root.querySelector(sel);
 function fmt(s) { return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); }
 
@@ -169,10 +175,10 @@ const views = {
     const tierName = (id) => (TIERS.find((t) => t.id === +id) || { name: "" }).name, local = !!S.localMarket;
     return pageHead("Companies", "What AI interviews look like at each kind of employer. Tiers are general guidance, not inside information: check recent postings and interview reports (Glassdoor, Levels.fyi) for each employer.") + `
     ${localMarketToggle()}
-    ${TIERS.map((t) => `<div class="card"><div class="row between"><h3 style="margin:0">${esc(t.name)}</h3><span class="pill">${esc(t.bar)}</span></div>
+    ${TIERS.map((t) => `<div class="card"><div class="row between"><h2 class="card-title" style="margin:0">${esc(t.name)}</h2><span class="pill">${esc(t.bar)}</span></div>
       <p>${esc(t.emphasis)}</p>
       ${local ? `<p><b>Toronto &amp; KW examples:</b> ${t.names.map((n) => `<span class="tag">${esc(n)}</span>`).join("")}</p>` : ""}</div>`).join("")}
-    <div class="card"><h3 style="margin-top:0">My application tracker</h3>
+    <div class="card"><h2 class="card-title">My application tracker</h2>
       <div class="row"><input id="c-name" placeholder="Company"><select id="c-tier">${TIERS.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select>
       <button class="btn primary" id="c-add">Add</button></div>
       ${S.companies.length ? `<table><tr><th>Company</th><th class="hide-sm">Tier</th><th>Status</th><th>Notes</th><th></th></tr>${S.companies.map((c, i) => `<tr>
@@ -188,7 +194,7 @@ const views = {
     const seg = (attr, val, opts) => `<div class="seg">${opts.map(([v, l]) => `<button ${attr}="${v}" class="${val === v ? "on" : ""}">${l}</button>`).join("")}</div>`;
     return pageHead("Settings", "Appearance, your plan, and backups. Everything is saved in this browser.") + `
       <div class="card">
-        <div class="section-head"><h3>Theme</h3><span class="muted">Now showing: ${esc(THEMES.find((t) => t.id === resolvedTheme())?.name || "")}</span></div>
+        <div class="section-head"><h2 class="card-title">Theme</h2><span class="muted">Now showing: ${esc(THEMES.find((t) => t.id === resolvedTheme())?.name || "")}</span></div>
         ${[["Dark", THEMES.filter((t) => !t.light)], ["Light", THEMES.filter((t) => t.light)]].map(([h, ts]) => `<div class="label theme-group">${h}</div>
         <div class="theme-grid">${ts.map((t) => `<button class="theme-card ${cur === t.id ? "on" : ""}" data-theme-pick="${t.id}">
           <div class="theme-prev">${t.id === "system" ? prev("light") + prev("dark") : prev(t.id)}</div>
@@ -202,18 +208,18 @@ const views = {
         <div class="setting"><div><b>Density</b><div class="muted">Compact tightens spacing in cards and lists.</div></div>
           ${seg("data-dens", S.density || "comfortable", [["comfortable", "Comfortable"], ["compact", "Compact"]])}</div>
       </div>
-      <div class="card"><h3>Keyboard</h3>
+      <div class="card"><h2 class="card-title">Keyboard</h2>
         <div class="setting"><div><b>Single-key shortcuts</b><div class="muted"><kbd>H</kbd> Home, <kbd>L</kbd> Learn, <kbd>C</kbd> Claude &amp; Anthropic, <kbd>J</kbd> Jobs, <kbd>S</kbd> Settings, and <kbd>\`</kbd> opens the console. They never fire while you're typing. Turn them off if they get in the way of a screen reader or voice control.</div></div>
           ${seg("data-shortcuts", S.keys === false ? "off" : "on", [["on", "On"], ["off", "Off"]])}</div>
         <div class="setting"><div><b>Always on</b><div class="muted"><kbd>Ctrl</kbd> <kbd>K</kbd> or <kbd>/</kbd> opens search, where <kbd>Tab</kbd> switches the filter. The console button in the top bar opens the console.</div></div></div>
       </div>
-      <div class="card"><h3>Your plan</h3>
+      <div class="card"><h2 class="card-title">Your plan</h2>
         <div class="setting"><div><b>Where you're starting from</b><div class="muted">New to AI: AI from zero comes first. Know the basics: start at machine learning fundamentals, with AI from zero as an option.</div></div>
           ${seg("data-level", S.level || "new", LEVELS)}</div>
         <div class="setting"><div><b>${esc(T.name)} start date</b><div class="muted">${st.start ? `Week ${trackWeek("ai")} of ${T.weeks.length}.` : "Not started. Pick a date or start it from the track's Overview."}</div></div>
           <input type="date" data-trstartdate="ai" value="${st.start || ""}"></div>
       </div>
-      <div class="card"><h3>Backup</h3>
+      <div class="card"><h2 class="card-title">Backup</h2>
         <div class="setting"><div><b>Your data</b><div class="muted">Progress lives in this browser only. Export now and then so you don't lose it. An export from the combined Prep Hub app imports here too.</div></div>
           <div class="row"><button class="btn" id="s-export">Export</button>
             <label class="btn">Import<input type="file" id="s-import" accept="application/json"></label>
@@ -232,12 +238,35 @@ function render() {
   if (isJobs(tab)) { S.lastJobs = tab; html = `<div class="tree-layout">${jobsTree()}<section class="tree-main">${crumbsHtml()}${html}</section></div>`; }
   $("#view").innerHTML = html;
   highlightCode($("#view"));
+  // Segmented controls are toggle buttons: say which one is selected, not only by its look
+  $("#view").querySelectorAll(".seg > button").forEach((b) => b.setAttribute("aria-pressed", b.classList.contains("on")));
   renderNav();
   document.title = pageTitle();
   syncUrl();
   placeTree(treeTop);
-  // A menu stays open while focus is inside it (:focus-within), so let go of focus after a pick
+  // Focus left on a menu's label or chevron would stay in the top bar; let go of it so go() moves it to the new page
   if (document.activeElement?.closest(".dd")) document.activeElement.blur();
+}
+// Copies text for a Copy button. The button says "Copied" for two seconds and screen readers hear it too; where the
+// clipboard isn't available (a page opened from a file), it says how to copy instead.
+const copyLabels = new WeakMap(); // a button's own label while it shows "Copied"
+function copyText(text, b) {
+  const flash = (label, msg) => {
+    if (!copyLabels.has(b)) copyLabels.set(b, b.innerHTML);
+    b.textContent = label; b.classList.add("copied");
+    announce(msg);
+    clearTimeout(b._copyTimer);
+    b._copyTimer = setTimeout(() => { b.innerHTML = copyLabels.get(b); copyLabels.delete(b); b.classList.remove("copied"); }, 2000);
+  };
+  const fail = () => flash("Select and copy", "Couldn't copy here. Select the text and copy it instead.");
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(() => flash("Copied", "Copied to the clipboard."), fail); else fail();
+}
+// Says a short status message to screen readers ("Copied", "Round 2 of 4") through the live region in index.html.
+// Emptied first, so the same message twice in a row is still read out.
+function announce(msg) {
+  const s = $("#sr-status");
+  s.textContent = "";
+  setTimeout(() => { s.textContent = msg; }, 60);
 }
 // The window title names the page ("Postings · Jobs · AI Prep"), so browser tabs, history and screen readers
 // can tell pages apart.
@@ -249,35 +278,55 @@ function pageTitle() {
 $("#nav").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
-  // A pick in a menu closes it even though the pointer is still over it; it opens again once the pointer
-  // leaves and comes back. The page itself opens through the data-nav-go / data-trgo handlers.
-  const dd = b.closest(".dd-panel")?.parentElement;
-  if (dd) {
-    if (dd.matches(":hover")) { dd.classList.add("shut"); syncMenu(dd); }
-    return;
-  }
+  const dd = b.closest(".dd");
+  // The chevron opens its menu (keeping it open if hovering already showed it) and closes it on a second press;
+  // the label beside it goes to the section
+  if (b.classList.contains("dd-toggle")) return dd.classList.contains("open") ? closeMenu(dd) : setMenuOpen(dd, true);
+  // A pick in a menu closes it. The page itself opens through the data-nav-go / data-trgo handlers.
+  if (b.closest(".dd-panel")) return closeMenu(dd);
   if (b.dataset.track) { const k = b.dataset.track; go(S.lastTab?.[k] || defaultTab(k)); }
   else if ("jobs" in b.dataset) go(S.lastJobs || "interview:mock");
   else if (b.dataset.nav) go(b.dataset.nav);
 });
-// A menu's button says whether the menu is showing (it opens on hover or focus, and .shut keeps it closed)
-const syncMenu = (dd) => requestAnimationFrame(() => dd.firstElementChild.setAttribute("aria-expanded", dd.matches(":hover, :focus-within") && !dd.classList.contains("shut")));
+// Learn and Jobs menus. Keyboard focus alone never opens one, so Tab moves straight along the top bar: the chevron
+// (or Down / Up arrow on either button) opens it, and Esc, a pick, a click elsewhere or focus leaving closes it.
+// With a mouse they also open on hover, and .shut keeps one closed after a pick until the pointer leaves.
+const canHover = window.matchMedia ? matchMedia("(hover: hover)") : { matches: false };
+const menuShown = (dd) => !dd.classList.contains("shut") && (dd.classList.contains("open") || (canHover.matches && dd.matches(":hover")));
+const syncMenu = (dd) => $(".dd-toggle", dd).setAttribute("aria-expanded", menuShown(dd));
+// A menu opens under its link, shifted left when it would run past the window's right edge
+function placeMenu(dd) {
+  const p = $(".dd-panel", dd), over = dd.getBoundingClientRect().left - 8 + p.offsetWidth - (document.documentElement.clientWidth - 16);
+  p.style.left = over > 0 ? `${-8 - over}px` : "";
+}
+function setMenuOpen(dd, open) {
+  document.querySelectorAll(".dd.open").forEach((x) => { if (x !== dd) { x.classList.remove("open"); syncMenu(x); } });
+  dd.classList.toggle("open", open);
+  if (open) { dd.classList.remove("shut"); placeMenu(dd); }
+  syncMenu(dd);
+}
+function closeMenu(dd, refocus) {
+  dd.classList.remove("open");
+  if (canHover.matches && dd.matches(":hover")) dd.classList.add("shut");
+  if (refocus) $(".dd-toggle", dd).focus();
+  syncMenu(dd);
+}
 document.querySelectorAll(".dd").forEach((dd) => {
-  // A menu opens under its link, shifted left when it would run past the window's right edge
-  ["mouseenter", "focusin"].forEach((ev) => dd.addEventListener(ev, () => {
-    const p = $(".dd-panel", dd), over = dd.getBoundingClientRect().left - 8 + p.offsetWidth - (document.documentElement.clientWidth - 16);
-    p.style.left = over > 0 ? `${-8 - over}px` : "";
-    syncMenu(dd);
-  }));
-  // A menu closed by a pick or Esc opens again once the pointer or focus leaves it and comes back
-  dd.addEventListener("mouseleave", () => { if (!dd.matches(":focus-within")) dd.classList.remove("shut"); syncMenu(dd); });
-  dd.addEventListener("focusout", (e) => { if (!dd.contains(e.relatedTarget)) { if (!dd.matches(":hover")) dd.classList.remove("shut"); syncMenu(dd); } });
-  // Esc closes the menu and puts focus back on its button; Down arrow on the button opens it at the first link
+  dd.addEventListener("mouseenter", () => { placeMenu(dd); syncMenu(dd); });
+  dd.addEventListener("mouseleave", () => { dd.classList.remove("shut"); syncMenu(dd); });
+  dd.addEventListener("focusout", (e) => { if (!dd.contains(e.relatedTarget)) { dd.classList.remove("open"); syncMenu(dd); } });
+  // Esc closes the menu and puts focus back on its chevron. Down / Up arrow opens it at the first / last link,
+  // then moves between its links.
   dd.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !dd.classList.contains("shut")) { e.stopPropagation(); dd.classList.add("shut"); dd.firstElementChild.focus(); syncMenu(dd); }
-    else if (e.key === "ArrowDown" && e.target === dd.firstElementChild) { e.preventDefault(); dd.classList.remove("shut"); $(".dd-panel button", dd)?.focus(); }
+    if (e.key === "Escape" && menuShown(dd)) { e.stopPropagation(); closeMenu(dd, true); return; }
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    if (!menuShown(dd)) setMenuOpen(dd, true);
+    const items = [...dd.querySelectorAll(".dd-panel button")], i = items.indexOf(document.activeElement), down = e.key === "ArrowDown";
+    (i < 0 ? items[down ? 0 : items.length - 1] : items[(i + (down ? 1 : -1) + items.length) % items.length])?.focus();
   });
 });
+document.addEventListener("click", (e) => { if (!e.target.closest(".dd")) document.querySelectorAll(".dd.open").forEach((dd) => closeMenu(dd)); });
 $("#subnav").addEventListener("click", (e) => { const b = e.target.closest("button[data-tab]"); if (b) go(b.dataset.tab); });
 
 // Phone menu: the burger opens the sheet under the header. Picking a page, clicking outside it or Esc closes it.
@@ -328,6 +377,16 @@ document.addEventListener("click", (e) => {
   if (t.closest("#theme-quick")) { S.theme = LIGHT_THEMES.has(resolvedTheme()) ? DEFAULT_THEME : "light"; save(); applyTheme(); return render(); }
   if (t.closest("#settings-open")) return go("settings");
   if (t.closest("#brand")) return go("home");
+  // "On this page" jumps: scroll the section under the header and give its heading focus. (A #id link would
+  // change the address, which belongs to the router.)
+  const jump = t.closest("[data-scrollto]");
+  if (jump) {
+    const sec = document.getElementById(jump.dataset.scrollto), h = sec && (sec.querySelector("h2, h3") || sec);
+    if (!sec) return;
+    revealEl("#" + sec.id);
+    h.tabIndex = -1; h.focus({ preventScroll: true });
+    return;
+  }
   const vc = t.closest(".vcard");
   if (vc) {
     vc.outerHTML = `<div class="vcard playing"><div class="video"><iframe src="https://www.youtube-nocookie.com/embed/${vc.dataset.plist ? "videoseries?list=" + vc.dataset.plist + "&" : vc.dataset.vid + "?"}autoplay=1" title="Video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div></div>`;
